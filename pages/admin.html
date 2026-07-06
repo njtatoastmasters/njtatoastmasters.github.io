@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — OnRamp</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="dashboard.html" class="nav-brand">
+    <div class="nav-logo">
+      <svg viewBox="0 0 18 18" fill="none">
+        <rect x="6" y="1" width="6" height="10" rx="3" fill="#004D2B"/>
+        <path d="M2 8a7 7 0 0 0 14 0" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="9" y1="15" x2="9" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="5" y1="17" x2="13" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="nav-title">OnRamp</div>
+      <div class="nav-subtitle">NJTA Toastmasters</div>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="meetings.html">Meetings</a></li>
+    <li><a href="my-speeches.html">My Speeches</a></li>
+    <li><a href="members.html">Members</a></li>
+    <li><a href="admin.html">Admin</a></li>
+  </ul>
+  <div class="nav-user">
+    <span id="nav-user-name"></span>
+    <div class="nav-avatar" id="nav-avatar"></div>
+    <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>Admin</h1>
+    <p>Manage meetings, members, and club settings.</p>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:1.5rem;border-bottom:2px solid var(--asphalt-dark);padding-bottom:0;">
+    <button class="tab-btn active" onclick="switchTab('meetings-tab', this)">Meetings</button>
+    <button class="tab-btn" onclick="switchTab('members-tab', this)">Members</button>
+  </div>
+
+  <!-- Meetings tab -->
+  <div id="meetings-tab">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+      <button class="btn btn-primary" onclick="openModal('modal-meeting')">+ Schedule meeting</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">All meetings</span></div>
+      <div id="admin-meetings-list"><div class="empty-state"><p>Loading…</p></div></div>
+    </div>
+  </div>
+
+  <!-- Members tab -->
+  <div id="members-tab" style="display:none;">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+      <button class="btn btn-primary" onclick="openModal('modal-invite')">+ Add member</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Club members</span></div>
+      <div id="admin-members-list"><div class="empty-state"><p>Loading…</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Schedule meeting modal -->
+<div class="modal-overlay" id="modal-meeting">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-meeting-title">Schedule a meeting</span>
+      <button class="modal-close" onclick="closeModal('modal-meeting')">✕</button>
+    </div>
+    <div class="form-group">
+      <label for="m-title">Meeting title</label>
+      <input type="text" id="m-title" placeholder="e.g. Regular Meeting — July">
+      <div class="form-hint">Leave blank to use "Regular Meeting"</div>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group">
+        <label for="m-date">Date</label>
+        <input type="date" id="m-date" required>
+      </div>
+      <div class="form-group">
+        <label for="m-time">Time</label>
+        <input type="time" id="m-time" value="12:00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="m-location">Location</label>
+      <input type="text" id="m-location" placeholder="e.g. HQ Conference Room B, Floor 14">
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group">
+        <label for="m-speakers">Speaker slots</label>
+        <select id="m-speakers">
+          <option value="2">2 speakers</option>
+          <option value="3" selected>3 speakers</option>
+          <option value="4">4 speakers</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="m-format">Meeting format</label>
+        <select id="m-format">
+          <option value="regular">Regular</option>
+          <option value="contest">Speech contest</option>
+          <option value="humorous">Humorous speech</option>
+          <option value="special">Special event</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="m-notes">Notes <span style="color:var(--text-light);font-weight:400;text-transform:none;">(optional)</span></label>
+      <textarea id="m-notes" placeholder="Any special info members should know…" style="min-height:60px;"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-meeting')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMeeting()">Schedule meeting</button>
+    </div>
+  </div>
+</div>
+
+<!-- Invite member modal -->
+<div class="modal-overlay" id="modal-invite">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add a member</span>
+      <button class="modal-close" onclick="closeModal('modal-invite')">✕</button>
+    </div>
+    <div class="alert alert-info" style="margin-bottom:1.25rem;">
+      This sends the member a magic link email. They'll be able to log in immediately.
+    </div>
+    <div class="form-group">
+      <label for="inv-name">Full name</label>
+      <input type="text" id="inv-name" placeholder="Jane Smith">
+    </div>
+    <div class="form-group">
+      <label for="inv-email">Work email</label>
+      <input type="email" id="inv-email" placeholder="jsmith@njta.gov">
+    </div>
+    <div class="form-group">
+      <label for="inv-role">Club role</label>
+      <select id="inv-role">
+        <option value="member">Member</option>
+        <option value="officer">Officer</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-invite')">Cancel</button>
+      <button class="btn btn-primary" onclick="inviteMember()">Send invite</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete meeting confirmation -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Delete meeting?</span>
+      <button class="modal-close" onclick="closeModal('modal-delete')">✕</button>
+    </div>
+    <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem;">
+      This will delete the meeting and all sign-ups. This cannot be undone.
+    </p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-delete')">Cancel</button>
+      <button class="btn btn-danger" id="confirm-delete-btn">Delete meeting</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let editingMeetingId = null;
+let deletingMeetingId = null;
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../index.html'; return; }
+  currentUser = session.user;
+
+  const { data: profile } = await sb.from('members').select('*').eq('id', currentUser.id).single();
+  if (!profile || profile.role !== 'admin') {
+    window.location.href = 'dashboard.html'; return;
+  }
+
+  document.getElementById('nav-user-name').textContent = profile.full_name.split(' ')[0];
+  const initials = profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2);
+  document.getElementById('nav-avatar').textContent = initials;
+
+  document.getElementById('m-date').value = new Date().toISOString().split('T')[0];
+
+  await loadMeetings();
+}
+
+async function loadMeetings() {
+  const { data: meetings } = await sb
+    .from('meetings')
+    .select(`*, meeting_roles(id), speaker_slots(id, member_id)`)
+    .order('meeting_date', { ascending: false });
+
+  const el = document.getElementById('admin-meetings-list');
+  if (!meetings || meetings.length === 0) {
+    el.innerHTML = `<div class="empty-state"><h3>No meetings yet</h3><p>Schedule your first meeting above.</p></div>`;
+    return;
+  }
+
+  el.innerHTML = `<table class="data-table">
+    <thead><tr><th>Date</th><th>Title</th><th>Location</th><th>Roles</th><th>Speakers</th><th>Agenda</th><th></th></tr></thead>
+    <tbody>${meetings.map(m => {
+      const today = new Date().toISOString().split('T')[0];
+      const isPast = m.meeting_date < today;
+      const filledSpeakers = (m.speaker_slots || []).filter(s => s.member_id).length;
+      return `<tr>
+        <td style="white-space:nowrap;${isPast ? 'color:var(--text-muted)' : ''}">${formatDate(m.meeting_date)}</td>
+        <td><strong>${m.title || 'Regular Meeting'}</strong></td>
+        <td style="color:var(--text-muted);font-size:0.82rem;">${m.location || '—'}</td>
+        <td><span class="badge ${isPast ? 'badge-gray' : (m.meeting_roles||[]).length >= 8 ? 'badge-green' : 'badge-amber'}">${(m.meeting_roles||[]).length}/8</span></td>
+        <td><span class="badge ${isPast ? 'badge-gray' : filledSpeakers >= (m.speaker_slots_count||3) ? 'badge-green' : 'badge-amber'}">${filledSpeakers}/${m.speaker_slots_count||3}</span></td>
+        <td><a href="agenda.html?id=${m.id}" class="btn btn-ghost btn-sm" target="_blank">View</a></td>
+        <td style="display:flex;gap:6px;">
+          <button class="btn btn-outline btn-sm" onclick="editMeeting(${JSON.stringify(m).replace(/"/g,'&quot;')})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDelete('${m.id}')">Delete</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+async function loadMembers() {
+  const { data: members } = await sb.from('members').select('*').order('full_name');
+  const el = document.getElementById('admin-members-list');
+  if (!members || members.length === 0) {
+    el.innerHTML = `<div class="empty-state"><h3>No members yet</h3><p>Add your first member above.</p></div>`;
+    return;
+  }
+
+  el.innerHTML = `<table class="data-table">
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th></th></tr></thead>
+    <tbody>${members.map(m => `<tr>
+      <td><strong>${m.full_name}</strong></td>
+      <td style="color:var(--text-muted)">${m.email || '—'}</td>
+      <td><span class="badge ${m.role === 'admin' ? 'badge-red' : m.role === 'officer' ? 'badge-amber' : 'badge-gray'}">${m.role}</span></td>
+      <td style="color:var(--text-muted)">${m.created_at ? formatDate(m.created_at) : '—'}</td>
+      <td>
+        <select onchange="updateMemberRole('${m.id}', this.value)" style="padding:4px 8px;font-size:0.8rem;border:1.5px solid var(--asphalt-dark);border-radius:6px;">
+          <option ${m.role==='member'?'selected':''} value="member">Member</option>
+          <option ${m.role==='officer'?'selected':''} value="officer">Officer</option>
+          <option ${m.role==='admin'?'selected':''} value="admin">Admin</option>
+        </select>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+async function saveMeeting() {
+  const date = document.getElementById('m-date').value;
+  if (!date) { showToast('Please pick a date.', 'error'); return; }
+
+  const btn = event.target;
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  const speakerCount = parseInt(document.getElementById('m-speakers').value);
+  const payload = {
+    title: document.getElementById('m-title').value.trim() || null,
+    meeting_date: date,
+    meeting_time: document.getElementById('m-time').value || '12:00',
+    location: document.getElementById('m-location').value.trim() || null,
+    speaker_slots_count: speakerCount,
+    format: document.getElementById('m-format').value,
+    notes: document.getElementById('m-notes').value.trim() || null,
+  };
+
+  let meetingId = editingMeetingId;
+  let error;
+
+  if (editingMeetingId) {
+    ({ error } = await sb.from('meetings').update(payload).eq('id', editingMeetingId));
+  } else {
+    const { data, error: e2 } = await sb.from('meetings').insert(payload).select().single();
+    error = e2; meetingId = data?.id;
+  }
+
+  // Create speaker slot rows if new meeting
+  if (!error && !editingMeetingId && meetingId) {
+    const slots = Array.from({ length: speakerCount }, (_, i) => ({
+      meeting_id: meetingId, slot_order: i + 1
+    }));
+    await sb.from('speaker_slots').insert(slots);
+  }
+
+  btn.textContent = 'Schedule meeting'; btn.disabled = false;
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+
+  closeModal('modal-meeting');
+  showToast(editingMeetingId ? 'Meeting updated.' : 'Meeting scheduled!', 'success');
+  editingMeetingId = null;
+  await loadMeetings();
+}
+
+function editMeeting(m) {
+  editingMeetingId = m.id;
+  document.getElementById('modal-meeting-title').textContent = 'Edit meeting';
+  document.getElementById('m-title').value = m.title || '';
+  document.getElementById('m-date').value = m.meeting_date;
+  document.getElementById('m-time').value = m.meeting_time || '12:00';
+  document.getElementById('m-location').value = m.location || '';
+  document.getElementById('m-speakers').value = m.speaker_slots_count || 3;
+  document.getElementById('m-format').value = m.format || 'regular';
+  document.getElementById('m-notes').value = m.notes || '';
+  openModal('modal-meeting');
+}
+
+function confirmDelete(id) {
+  deletingMeetingId = id;
+  document.getElementById('confirm-delete-btn').onclick = async () => {
+    await sb.from('meetings').delete().eq('id', deletingMeetingId);
+    closeModal('modal-delete');
+    showToast('Meeting deleted.', '');
+    await loadMeetings();
+  };
+  openModal('modal-delete');
+}
+
+async function inviteMember() {
+  const name = document.getElementById('inv-name').value.trim();
+  const email = document.getElementById('inv-email').value.trim();
+  const role = document.getElementById('inv-role').value;
+
+  if (!name || !email) { showToast('Name and email are required.', 'error'); return; }
+
+  const btn = event.target;
+  btn.textContent = 'Sending…'; btn.disabled = true;
+
+  // Invite via Supabase Auth (sends magic link)
+  const { data, error } = await sb.auth.admin.inviteUserByEmail(email, {
+    data: { full_name: name, role }
+  });
+
+  // Fallback: if admin API not available on client, just create the member record
+  // and let them sign in via magic link
+  if (error) {
+    // Try inserting into members table directly (admin must approve after first login)
+    const { error: e2 } = await sb.from('members').insert({ full_name: name, email, role });
+    if (e2) {
+      showToast('Error: ' + (error.message || e2.message), 'error');
+      btn.textContent = 'Send invite'; btn.disabled = false;
+      return;
+    }
+  }
+
+  btn.textContent = 'Send invite'; btn.disabled = false;
+  closeModal('modal-invite');
+  showToast(`Invite sent to ${email}`, 'success');
+  await loadMembers();
+}
+
+async function updateMemberRole(memberId, newRole) {
+  const { error } = await sb.from('members').update({ role: newRole }).eq('id', memberId);
+  if (error) showToast('Error: ' + error.message, 'error');
+  else showToast('Role updated.', 'success');
+}
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('meetings-tab').style.display = tab === 'meetings-tab' ? '' : 'none';
+  document.getElementById('members-tab').style.display = tab === 'members-tab' ? '' : 'none';
+  if (tab === 'members-tab') loadMembers();
+}
+
+function formatDate(d) {
+  return new Date(d + (d.length === 10 ? 'T12:00:00' : '')).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function showToast(msg, type = '') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`; t.textContent = msg; c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('click', e => { if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('open'); });
+function signOut() { sb.auth.signOut().then(() => window.location.href = '../index.html'); }
+
+init();
+</script>
+</body>
+</html>

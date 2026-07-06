@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meeting Agenda — OnRamp</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @media print {
+      .nav, .no-print { display: none !important; }
+      body { background: white; }
+      .agenda-wrap { max-width: 100%; padding: 0; }
+      .card { box-shadow: none; border: 1px solid #ddd; }
+    }
+
+    .agenda-wrap { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    .agenda-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .agenda-logo-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 0.5rem;
+    }
+
+    .agenda-logo {
+      width: 36px; height: 36px;
+      background: var(--amber);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .agenda-club-name {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .agenda-meeting-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 2rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--green-dark);
+    }
+
+    .agenda-meta {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .agenda-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .agenda-section-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--green);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .agenda-section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--green);
+      opacity: 0.25;
+    }
+
+    .agenda-item {
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      gap: 0 12px;
+      align-items: start;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--asphalt-dark);
+    }
+
+    .agenda-item:last-child { border-bottom: none; }
+
+    .agenda-item-time {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      padding-top: 2px;
+    }
+
+    .agenda-item-role {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .agenda-item-detail {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .agenda-item-person {
+      font-size: 0.85rem;
+      color: var(--green-dark);
+      font-weight: 500;
+      text-align: right;
+      padding-top: 2px;
+      white-space: nowrap;
+    }
+
+    .agenda-item-open .agenda-item-person {
+      color: var(--text-light);
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    .speaker-detail {
+      margin-top: 3px;
+      font-size: 0.78rem;
+      color: var(--green);
+      font-weight: 500;
+    }
+
+    .word-of-day-box {
+      background: var(--green-light);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .fill-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--asphalt);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      margin-bottom: 1.5rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--asphalt-dark);
+      border-radius: 99px;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 99px;
+      transition: width 0.4s;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav no-print">
+  <a href="dashboard.html" class="nav-brand">
+    <div class="nav-logo">
+      <svg viewBox="0 0 18 18" fill="none">
+        <rect x="6" y="1" width="6" height="10" rx="3" fill="#004D2B"/>
+        <path d="M2 8a7 7 0 0 0 14 0" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="9" y1="15" x2="9" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="5" y1="17" x2="13" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="nav-title">OnRamp</div>
+      <div class="nav-subtitle">NJTA Toastmasters</div>
+    </div>
+  </a>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-outline btn-sm" onclick="window.print()">Print / Save PDF</button>
+    <a href="meetings.html" class="btn btn-ghost btn-sm">← Back to meetings</a>
+  </div>
+</nav>
+
+<div class="agenda-wrap">
+
+  <div id="agenda-header" class="agenda-header">
+    <div class="agenda-logo-row">
+      <div class="agenda-logo">
+        <svg viewBox="0 0 18 18" fill="none" width="20" height="20">
+          <rect x="6" y="1" width="6" height="10" rx="3" fill="#004D2B"/>
+          <path d="M2 8a7 7 0 0 0 14 0" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="9" y1="15" x2="9" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="5" y1="17" x2="13" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="agenda-club-name">NJTA Toastmasters</span>
+    </div>
+    <div class="agenda-meeting-title" id="agenda-title">Loading…</div>
+    <div class="agenda-meta" id="agenda-meta"></div>
+  </div>
+
+  <hr class="road-line">
+
+  <div id="fill-status" class="fill-status">
+    <span id="fill-text">Loading…</span>
+    <div class="progress-bar"><div class="progress-fill" id="fill-bar" style="width:0%"></div></div>
+    <span id="fill-pct" style="font-weight:600;color:var(--green-dark);min-width:36px;text-align:right;">0%</span>
+  </div>
+
+  <div id="agenda-body">
+    <div class="empty-state"><p>Loading agenda…</p></div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const ROLES = [
+  { id: 'tmod', name: 'Toastmaster of the Day', time: null, section: 'roles' },
+  { id: 'sergeant', name: 'Sergeant at Arms', time: null, section: 'roles' },
+  { id: 'ge', name: 'General Evaluator', time: null, section: 'roles' },
+  { id: 'timer', name: 'Timer', time: null, section: 'roles' },
+  { id: 'grammarian', name: 'Grammarian', time: null, section: 'roles' },
+  { id: 'ah_counter', name: 'Ah-Counter', time: null, section: 'roles' },
+  { id: 'topicsmaster', name: 'Table Topics Master', time: null, section: 'topics' },
+  { id: 'ballot_counter', name: 'Ballot Counter', time: null, section: 'roles' },
+];
+
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) { document.getElementById('agenda-body').innerHTML = '<div class="empty-state"><h3>No meeting specified</h3></div>'; return; }
+
+  const { data: meeting } = await sb
+    .from('meetings')
+    .select(`*, meeting_roles(*, members(full_name)), speaker_slots(*, members(full_name))`)
+    .eq('id', id)
+    .single();
+
+  if (!meeting) { document.getElementById('agenda-body').innerHTML = '<div class="empty-state"><h3>Meeting not found</h3></div>'; return; }
+
+  document.title = `${meeting.title || 'Regular Meeting'} — OnRamp Agenda`;
+  document.getElementById('agenda-title').textContent = meeting.title || 'Regular Meeting';
+  document.getElementById('agenda-meta').textContent = `${formatDate(meeting.meeting_date)} · ${formatTime(meeting.meeting_time)} · ${meeting.location || 'Location TBD'}`;
+
+  const roles = meeting.meeting_roles || [];
+  const speakers = (meeting.speaker_slots || []).filter(s => s.member_id);
+  const totalSlots = ROLES.length + (meeting.speaker_slots_count || 3);
+  const filled = roles.length + speakers.length;
+  const pct = Math.round((filled / totalSlots) * 100);
+
+  document.getElementById('fill-text').textContent = `${filled} of ${totalSlots} slots filled`;
+  document.getElementById('fill-bar').style.width = pct + '%';
+  document.getElementById('fill-pct').textContent = pct + '%';
+
+  const roleMap = {};
+  roles.forEach(r => { roleMap[r.role_id] = r.members?.full_name || 'TBD'; });
+
+  const coreRoles = ROLES.filter(r => r.section === 'roles' && r.id !== 'sergeant');
+  const sergeant = ROLES.find(r => r.id === 'sergeant');
+
+  function roleItem(role) {
+    const person = roleMap[role.id];
+    return `<div class="agenda-item ${person ? '' : 'agenda-item-open'}">
+      <div class="agenda-item-time"></div>
+      <div>
+        <div class="agenda-item-role">${role.name}</div>
+      </div>
+      <div class="agenda-item-person">${person || 'Open'}</div>
+    </div>`;
+  }
+
+  const speakerItems = Array.from({ length: meeting.speaker_slots_count || 3 }, (_, i) => {
+    const slot = (meeting.speaker_slots || [])[i];
+    const hasSpeaker = slot && slot.member_id;
+    return `<div class="agenda-item ${hasSpeaker ? '' : 'agenda-item-open'}">
+      <div class="agenda-item-time">${i + 1}</div>
+      <div>
+        <div class="agenda-item-role">${hasSpeaker ? `"${slot.speech_title || 'Title TBD'}"` : 'Speaker slot open'}</div>
+        ${hasSpeaker && slot.pathway ? `<div class="speaker-detail">${[slot.pathway, slot.project_name].filter(Boolean).join(' · ')}</div>` : ''}
+        ${hasSpeaker && slot.evaluator_notes ? `<div class="agenda-item-detail">Evaluator focus: ${slot.evaluator_notes}</div>` : ''}
+      </div>
+      <div class="agenda-item-person">${hasSpeaker ? slot.members?.full_name : 'Open'}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('agenda-body').innerHTML = `
+    ${meeting.notes ? `<div class="alert alert-info" style="margin-bottom:1.5rem;">${meeting.notes}</div>` : ''}
+
+    <div class="agenda-section">
+      <div class="agenda-section-title">Meeting roles</div>
+      ${sergeant ? roleItem(sergeant) : ''}
+      ${coreRoles.map(roleItem).join('')}
+    </div>
+
+    <div class="agenda-section">
+      <div class="agenda-section-title">Prepared speeches</div>
+      ${speakerItems}
+    </div>
+
+    <div class="agenda-section">
+      <div class="agenda-section-title">Table Topics</div>
+      ${roleItem(ROLES.find(r => r.id === 'topicsmaster'))}
+      <div class="agenda-item">
+        <div class="agenda-item-time"></div>
+        <div><div class="agenda-item-role" style="color:var(--text-muted);font-weight:400;font-style:italic;">Open to all members</div></div>
+        <div></div>
+      </div>
+    </div>
+
+    ${roleMap['grammarian'] ? `
+    <div class="word-of-day-box no-print">
+      <strong>Word of the Day</strong> — to be announced by the Grammarian (${roleMap['grammarian']}) at the start of the meeting.
+    </div>` : ''}
+
+    <hr class="road-line" style="margin-top:2rem;">
+    <p style="font-size:0.75rem;color:var(--text-light);text-align:center;">Generated by OnRamp · NJTA Toastmasters · onramp.github.io</p>
+  `;
+}
+
+function formatDate(d) {
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function formatTime(t) {
+  if (!t) return 'Time TBD';
+  const [h, m] = t.split(':');
+  const hr = parseInt(h); const ampm = hr >= 12 ? 'PM' : 'AM';
+  return `${hr % 12 || 12}:${m} ${ampm}`;
+}
+
+init();
+</script>
+</body>
+</html>

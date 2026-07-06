@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Members — OnRamp</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="dashboard.html" class="nav-brand">
+    <div class="nav-logo">
+      <svg viewBox="0 0 18 18" fill="none">
+        <rect x="6" y="1" width="6" height="10" rx="3" fill="#004D2B"/>
+        <path d="M2 8a7 7 0 0 0 14 0" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="9" y1="15" x2="9" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="5" y1="17" x2="13" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="nav-title">OnRamp</div>
+      <div class="nav-subtitle">NJTA Toastmasters</div>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="meetings.html">Meetings</a></li>
+    <li><a href="my-speeches.html">My Speeches</a></li>
+    <li><a href="members.html">Members</a></li>
+    <li><a href="admin.html" id="nav-admin" style="display:none">Admin</a></li>
+  </ul>
+  <div class="nav-user">
+    <span id="nav-user-name"></span>
+    <div class="nav-avatar" id="nav-avatar"></div>
+    <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>Members</h1>
+    <p>Your fellow NJTA Toastmasters.</p>
+  </div>
+
+  <div id="members-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;">
+    <div class="empty-state"><p>Loading…</p></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../index.html'; return; }
+  const currentUser = session.user;
+
+  const { data: profile } = await sb.from('members').select('*').eq('id', currentUser.id).single();
+  if (profile) {
+    document.getElementById('nav-user-name').textContent = profile.full_name.split(' ')[0];
+    const initials = profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2);
+    document.getElementById('nav-avatar').textContent = initials;
+    if (profile.role === 'admin') document.getElementById('nav-admin').style.display = '';
+  }
+
+  // Load members with speech/role counts
+  const { data: members } = await sb.from('members').select(`
+    *, 
+    speeches(count), 
+    meeting_roles(count)
+  `).order('full_name');
+
+  const grid = document.getElementById('members-grid');
+  if (!members || members.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><p>No members yet.</p></div>';
+    return;
+  }
+
+  grid.innerHTML = members.map(m => {
+    const initials = m.full_name.split(' ').map(n => n[0]).join('').slice(0, 2);
+    const speeches = m.speeches?.[0]?.count || 0;
+    const roles = m.meeting_roles?.[0]?.count || 0;
+    const isMe = m.id === currentUser.id;
+    return `<div class="card" style="${isMe ? 'border:2px solid var(--green);' : ''}">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+        <div style="width:48px;height:48px;background:var(--green-light);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:600;color:var(--green-dark);flex-shrink:0;">
+          ${initials}
+        </div>
+        <div>
+          <div style="font-weight:600;font-size:0.95rem;">${m.full_name} ${isMe ? '<span class="badge badge-green" style="margin-left:4px;">You</span>' : ''}</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);margin-top:1px;">
+            <span class="badge badge-gray">${m.role}</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;">
+        <div style="text-align:center;flex:1;background:var(--asphalt);border-radius:var(--radius);padding:8px;">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:600;color:var(--green-dark);">${speeches}</div>
+          <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);">Speeches</div>
+        </div>
+        <div style="text-align:center;flex:1;background:var(--asphalt);border-radius:var(--radius);padding:8px;">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:600;color:var(--green-dark);">${roles}</div>
+          <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);">Roles</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function signOut() { sb.auth.signOut().then(() => window.location.href = '../index.html'); }
+init();
+</script>
+</body>
+</html>

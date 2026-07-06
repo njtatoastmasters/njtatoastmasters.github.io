@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NJTA Toastmasters — OnRamp</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ── Landing-page-specific styles ── */
+
+    body { background: var(--asphalt); }
+
+    /* Top bar */
+    .topbar {
+      background: var(--green);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .topbar-logo {
+      width: 32px; height: 32px;
+      background: var(--amber);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .topbar-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--white);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .topbar-subtitle {
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.65);
+      letter-spacing: 0.04em;
+      margin-top: -2px;
+    }
+
+    .topbar-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .topbar-nav a {
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      transition: background 0.15s;
+    }
+
+    .topbar-nav a:hover { background: rgba(255,255,255,0.12); color: var(--white); }
+
+    /* Hero */
+    .hero {
+      background: var(--green-dark);
+      color: var(--white);
+      padding: 5rem 2rem 4rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle road-stripe decoration behind hero */
+    .hero::before {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 4px;
+      background: repeating-linear-gradient(
+        to right,
+        var(--amber) 0px, var(--amber) 40px,
+        transparent 40px, transparent 64px
+      );
+      opacity: 0.7;
+    }
+
+    .hero-eyebrow {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--white);
+      line-height: 1.1;
+      max-width: 700px;
+      margin: 0 auto 1.25rem;
+    }
+
+    .hero-sub {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.75);
+      max-width: 520px;
+      margin: 0 auto 2.25rem;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-hero-primary {
+      background: var(--amber);
+      color: #3A2000;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      padding: 12px 28px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-hero-primary:hover { background: #FFBB45; transform: translateY(-1px); }
+
+    .btn-hero-outline {
+      background: transparent;
+      color: var(--white);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      padding: 12px 28px;
+      border-radius: var(--radius);
+      border: 1.5px solid rgba(255,255,255,0.4);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .btn-hero-outline:hover { border-color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.08); }
+
+    /* Section wrapper */
+    .section {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 3.5rem 1.5rem;
+    }
+
+    .section-eyebrow {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 0.5rem;
+    }
+
+    .section h2 {
+      font-family: 'Oswald', sans-serif;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--green-dark);
+      margin-bottom: 0.75rem;
+    }
+
+    .section-intro {
+      font-size: 1rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      line-height: 1.7;
+      margin-bottom: 2.5rem;
+    }
+
+    /* What is OnRamp explainer strip */
+    .explainer-strip {
+      background: var(--white);
+      border-top: 4px solid var(--green);
+      padding: 2rem 1.5rem;
+    }
+
+    .explainer-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .explainer-text h2 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--green-dark);
+      margin-bottom: 0.75rem;
+    }
+
+    .explainer-text p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 0.75rem;
+    }
+
+    .explainer-links {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 1.25rem;
+    }
+
+    .quick-links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .quick-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--asphalt);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      text-decoration: none;
+      color: var(--text);
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background 0.15s;
+    }
+
+    .quick-link:hover { background: var(--green-light); color: var(--green-dark); }
+
+    .quick-link-icon {
+      width: 32px; height: 32px;
+      background: var(--green-light);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .quick-link:hover .quick-link-icon { background: rgba(0,107,60,0.15); }
+
+    /* Three-up value props */
+    .value-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 0;
+    }
+
+    .value-card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      border-top: 3px solid var(--green);
+    }
+
+    .value-icon {
+      font-size: 1.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .value-card h3 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--green-dark);
+      margin-bottom: 0.5rem;
+    }
+
+    .value-card p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Meeting schedule */
+    .schedule-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+
+    .schedule-card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .schedule-icon {
+      width: 40px; height: 40px;
+      background: var(--green-light);
+      border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .schedule-card h4 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--green-dark);
+      margin-bottom: 3px;
+    }
+
+    .schedule-card p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Membership / fees */
+    .fees-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .fee-card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .fee-amount {
+      font-family: 'Oswald', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 600;
+      color: var(--green-dark);
+      line-height: 1;
+    }
+
+    .fee-period {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      margin-top: 2px;
+    }
+
+    .fee-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* FAQ */
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .faq-item {
+      border-bottom: 1px solid var(--asphalt-dark);
+      padding: 1.1rem 0;
+    }
+
+    .faq-item:first-child { border-top: 1px solid var(--asphalt-dark); }
+
+    .faq-q {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+    }
+
+    .faq-a {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* CTA band */
+    .cta-band {
+      background: var(--green);
+      padding: 3rem 1.5rem;
+      text-align: center;
+    }
+
+    .cta-band h2 {
+      font-family: 'Oswald', sans-serif;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--white);
+      margin-bottom: 0.75rem;
+    }
+
+    .cta-band p {
+      color: rgba(255,255,255,0.75);
+      max-width: 480px;
+      margin: 0 auto 1.75rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--green-dark);
+      color: rgba(255,255,255,0.5);
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.78rem;
+      line-height: 1.7;
+    }
+
+    .footer a { color: rgba(255,255,255,0.65); text-decoration: none; }
+    .footer a:hover { color: var(--white); }
+
+    /* Alternating section bg */
+    .section-alt { background: var(--white); }
+
+    @media (max-width: 640px) {
+      .explainer-inner { grid-template-columns: 1fr; }
+      .topbar-nav { display: none; }
+      .hero { padding: 3rem 1.25rem 2.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Top bar ── -->
+<header class="topbar">
+  <a href="index.html" class="topbar-brand">
+    <div class="topbar-logo">
+      <svg viewBox="0 0 18 18" fill="none" width="18" height="18">
+        <rect x="6" y="1" width="6" height="10" rx="3" fill="#004D2B"/>
+        <path d="M2 8a7 7 0 0 0 14 0" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="9" y1="15" x2="9" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="5" y1="17" x2="13" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="topbar-title">OnRamp</div>
+      <div class="topbar-subtitle">NJTA Toastmasters</div>
+    </div>
+  </a>
+  <nav class="topbar-nav">
+    <a href="#about">About</a>
+    <a href="#why">Why TM</a>
+    <a href="#meetings">Meetings</a>
+    <a href="#membership">Join</a>
+    <a href="#faq">FAQ</a>
+    <a href="login.html" style="background:rgba(255,255,255,0.15);color:var(--white);margin-left:4px;">Member login</a>
+  </nav>
+</header>
+
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div class="hero-eyebrow">NJTA Toastmasters — Club #XXXXXX</div>
+  <h1>Speak up.<br>Lead with confidence.</h1>
+  <p class="hero-sub">
+    NJTA Toastmasters is a corporate Toastmasters club for New Jersey Turnpike Authority employees.
+    Toastmasters International is a nonprofit that has helped people build public speaking and
+    leadership skills through local clubs since 1924 — and NJTA covers your membership cost.
+  </p>
+  <div class="hero-actions">
+    <a href="#membership" class="btn-hero-primary">Learn how to join</a>
+    <a href="#meetings" class="btn-hero-outline">See meeting schedule</a>
+  </div>
+</section>
+
+
+<!-- ── What is OnRamp explainer strip ── -->
+<div class="explainer-strip">
+  <div class="explainer-inner">
+    <div class="explainer-text">
+      <h2>What is OnRamp?</h2>
+      <p>
+        OnRamp is the NJTA Toastmasters member portal. If you're already a club member,
+        log in here to sign up for meeting roles, volunteer as a prepared speaker,
+        and track your Pathways progress — all in one place.
+      </p>
+      <p>
+        If you're visiting to learn about the club, keep scrolling. Everything you need to know
+        about who we are, when we meet, and how to join is below.
+      </p>
+      <div class="explainer-links">
+        <a href="login.html" class="btn btn-primary btn-sm">Member login →</a>
+        <a href="#about" class="btn btn-ghost btn-sm">About the club ↓</a>
+      </div>
+    </div>
+    <div class="quick-links">
+      <a href="#about" class="quick-link">
+        <div class="quick-link-icon">🎤</div>
+        <span>What is Toastmasters?</span>
+      </a>
+      <a href="#why" class="quick-link">
+        <div class="quick-link-icon">📊</div>
+        <span>Why Toastmasters vs. alternatives</span>
+      </a>
+      <a href="#meetings" class="quick-link">
+        <div class="quick-link-icon">📅</div>
+        <span>Meeting dates &amp; times</span>
+      </a>
+      <a href="#membership" class="quick-link">
+        <div class="quick-link-icon">💳</div>
+        <span>Membership fees &amp; reimbursement</span>
+      </a>
+      <a href="#faq" class="quick-link">
+        <div class="quick-link-icon">❓</div>
+        <span>Common questions</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── About the club ── -->
+<section class="section" id="about">
+  <div class="section-eyebrow">About the club</div>
+  <h2>More than just speeches</h2>
+  <p class="section-intro">
+    Toastmasters International is a global nonprofit dedicated to helping people develop
+    communication and leadership skills. We're one of hundreds of corporate clubs that meet
+    inside a company — and one of the few that meets inside a government authority.
+  </p>
+
+  <div class="value-grid">
+    <div class="value-card">
+      <div class="value-icon">🗣️</div>
+      <h3>Public speaking</h3>
+      <p>Deliver prepared speeches in a low-stakes, encouraging environment. Get feedback
+         from your peers and grow at your own pace through the Pathways learning program.</p>
+    </div>
+    <div class="value-card">
+      <div class="value-icon">🧭</div>
+      <h3>Leadership skills</h3>
+      <p>Every meeting has a different structure and rotating roles — Timer, Grammarian,
+         Table Topics Master, General Evaluator. Each one builds a different skill.</p>
+    </div>
+    <div class="value-card">
+      <div class="value-icon">⚡</div>
+      <h3>Table Topics</h3>
+      <p>Think on your feet. Table Topics is an impromptu speaking segment where members
+         answer surprise questions in 1–2 minutes. It's the fan favorite of every meeting.</p>
+    </div>
+    <div class="value-card">
+      <div class="value-icon">🤝</div>
+      <h3>Community</h3>
+      <p>A small, tight-knit club means you get real face time and genuine feedback — not
+         just polite applause. We're currently about 12 members and growing.</p>
+    </div>
+    <div class="value-card">
+      <div class="value-icon">🎩</div>
+      <h3>More than speaking</h3>
+      <p>Every meeting needs a Toastmaster, Evaluator, Timer, Grammarian, Ah-Counter, and
+         more. Each role builds a different leadership skill — planning, listening,
+         facilitation, feedback — so there's a fit for every comfort level.</p>
+    </div>
+  </div>
+
+  <div style="background:var(--green-light);border-radius:var(--radius-lg);padding:1.5rem 1.75rem;margin-top:1.75rem;max-width:640px;">
+    <p style="font-size:0.95rem;color:var(--green-dark);font-style:italic;line-height:1.6;">
+      Members of Toastmasters clubs worldwide describe the program as transformative for their
+      confidence and ability to find their voice — turning daunting communication challenges
+      into a skill they can rely on in business and in life.
+    </p>
+  </div>
+</section>
+
+<hr class="road-line" style="max-width:960px;margin:0 auto;">
+
+
+<!-- ── Why Toastmasters comparison ── -->
+<section class="section section-alt" id="why" style="background:var(--white);">
+  <div class="section-eyebrow">Why Toastmasters</div>
+  <h2>More bang for your buck</h2>
+  <p class="section-intro">
+    Compared to university courses, online classes, and free videos, Toastmasters is the only option
+    that combines live practice, real feedback, and structured progress — at a fraction of the cost.
+    Dues are <strong>$60 every six months</strong>, and NJTA reimburses that in full (see below).
+  </p>
+
+  <div style="overflow-x:auto;">
+    <table class="data-table" style="min-width:640px;background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow);">
+      <thead>
+        <tr>
+          <th style="width:22%;">&nbsp;</th>
+          <th style="color:var(--green-dark);">Toastmasters</th>
+          <th>University course</th>
+          <th>Online courses</th>
+          <th>Free videos/articles</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="font-weight:600;">Cost</td>
+          <td><strong style="color:var(--green-dark);">$60 / 6 months</strong><br><span style="font-size:0.78rem;color:var(--text-light);">(NJTA reimbursed)</span></td>
+          <td style="color:var(--text-muted);">$1,000–$4,000</td>
+          <td style="color:var(--text-muted);">$100–$200 / course</td>
+          <td style="color:var(--text-muted);">$0</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600;">Live practice with people</td>
+          <td><span style="color:var(--green);font-weight:700;">✓</span></td>
+          <td style="color:var(--text-muted);">Limited</td>
+          <td style="color:var(--text-light);">—</td>
+          <td style="color:var(--text-light);">—</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600;">Real-time feedback</td>
+          <td><span style="color:var(--green);font-weight:700;">✓</span></td>
+          <td><span style="color:var(--green);font-weight:700;">✓</span></td>
+          <td style="color:var(--text-light);">—</td>
+          <td style="color:var(--text-light);">—</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600;">Self-paced</td>
+          <td><span style="color:var(--green);font-weight:700;">✓</span></td>
+          <td style="color:var(--text-light);">—</td>
+          <td><span style="color:var(--green);font-weight:700;">✓</span></td>
+          <td style="color:var(--text-light);">—</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600;">Structured assessments</td>
+          <td><span style="color:var(--green);font-weight:700;">✓</span></td>
+          <td><span style="color:var(--green);font-weight:700;">✓</span></td>
+          <td style="color:var(--text-light);">—</td>
+          <td style="color:var(--text-light);">—</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600;">Recurring practice built in</td>
+          <td><span style="color:var(--green);font-weight:700;">✓</span></td>
+          <td style="color:var(--text-light);">—</td>
+          <td style="color:var(--text-light);">—</td>
+          <td style="color:var(--text-light);">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:0.78rem;color:var(--text-light);margin-top:0.75rem;">
+    Source: NJTA Toastmasters internal comparison, based on typical public speaking education options.
+  </p>
+</section>
+
+<hr class="road-line" style="max-width:960px;margin:0 auto;">
+
+
+<!-- ── Meeting schedule ── -->
+<section class="section section-alt" id="meetings" style="background:var(--white);border-radius:0;">
+  <div class="section-eyebrow">Schedule</div>
+  <h2>When we meet</h2>
+  <p class="section-intro">
+    We meet twice a month during the lunch hour. Meetings run about 60–75 minutes.
+    Guests are always welcome — no RSVP needed for your first visit.
+  </p>
+
+  <div class="schedule-grid">
+    <div class="schedule-card">
+      <div class="schedule-icon">📅</div>
+      <div>
+        <h4>Meeting days</h4>
+        <p>2nd and 4th Tuesday of each month.<br>
+           <em style="color:var(--text-light);">Placeholder — update with your actual schedule.</em></p>
+      </div>
+    </div>
+    <div class="schedule-card">
+      <div class="schedule-icon">🕛</div>
+      <div>
+        <h4>Time</h4>
+        <p>12:00 PM – 1:15 PM<br>
+           <em style="color:var(--text-light);">Confirm your actual start/end time.</em></p>
+      </div>
+    </div>
+    <div class="schedule-card">
+      <div class="schedule-icon">📍</div>
+      <div>
+        <h4>Location</h4>
+        <p>NJTA Headquarters<br>
+           Conference Room [TBD], Floor [TBD]<br>
+           Woodbridge, NJ<br>
+           <em style="color:var(--text-light);">Update with actual room.</em></p>
+      </div>
+    </div>
+    <div class="schedule-card">
+      <div class="schedule-icon">💻</div>
+      <div>
+        <h4>Hybrid / remote</h4>
+        <p>We occasionally meet via Teams for remote participants. Check the agenda
+           for the format of each meeting.<br>
+           <em style="color:var(--text-light);">Update if hybrid is offered.</em></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info" style="margin-top:1.75rem;max-width:600px;">
+    <span>
+      <strong>First time?</strong> Just show up. Guests observe one meeting free of charge
+      before deciding whether to join. No registration required.
+    </span>
+  </div>
+</section>
+
+
+<!-- ── Membership & fees ── -->
+<section class="section" id="membership">
+  <div class="section-eyebrow">Membership</div>
+  <h2>How to join</h2>
+  <p class="section-intro">
+    Membership is open to all NJTA employees. Dues cover your Toastmasters International
+    membership, which includes access to the Pathways learning program and all club activities —
+    and NJTA reimburses your dues in full when you stay active.
+  </p>
+
+  <div class="fees-grid" style="margin-bottom:1.25rem;">
+    <div class="fee-card">
+      <div class="fee-amount">$60</div>
+      <div class="fee-period">Every 6 months</div>
+      <div class="fee-desc">Toastmasters International membership dues, billed twice a year (prorated from your start month).</div>
+    </div>
+    <div class="fee-card">
+      <div class="fee-amount">$25</div>
+      <div class="fee-period">New member fee</div>
+      <div class="fee-desc">One-time fee when you first join. Covers your first Pathways path and processing.</div>
+    </div>
+    <div class="fee-card">
+      <div class="fee-amount">$0</div>
+      <div class="fee-period">Club-level dues</div>
+      <div class="fee-desc">No additional club fee — we keep it simple for NJTA members.</div>
+    </div>
+  </div>
+
+  <div class="alert alert-success" style="max-width:600px;margin-bottom:2rem;">
+    <span>
+      <strong>NJTA reimburses 100% of your dues.</strong> Attend at least 3 meetings and complete
+      at least 1 Pathways project within a 6-month eligibility period, and you can submit your
+      membership fees for reimbursement through your supervisor — same as any other expense.
+      Eligibility periods run April 1 – September 30 and October 1 – March 31.
+      <em style="color:inherit;opacity:0.8;display:block;margin-top:6px;font-size:0.82rem;">
+        Contact a club officer for the reimbursement form and current process.
+      </em>
+    </span>
+  </div>
+
+  <div style="background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:1.75rem;max-width:600px;">
+    <h3 style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;color:var(--green-dark);margin-bottom:1rem;">Ready to join?</h3>
+    <ol style="padding-left:1.25rem;font-size:0.9rem;color:var(--text-muted);line-height:2;">
+      <li>Attend one meeting as a guest — no commitment.</li>
+      <li>Reach out to the club president (see contact below).</li>
+      <li>Fill out the Toastmasters International membership application — download it below,
+          or apply directly at <a href="https://www.toastmasters.org" target="_blank" style="color:var(--green);font-weight:500;">toastmasters.org</a>.</li>
+      <li>Submit your application and payment to a club officer.</li>
+    </ol>
+    <div style="margin-top:1.25rem;">
+      <a href="assets/Toastmasters_Membership_Application.pdf" target="_blank" class="btn btn-outline btn-sm">
+        📄 Download membership application (PDF)
+      </a>
+    </div>
+    <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--asphalt-dark);">
+      <div style="font-size:0.78rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">Contact</div>
+      <div style="font-size:0.9rem;">
+        <strong>[Club President Name]</strong><br>
+        <a href="mailto:president@example.njta.gov" style="color:var(--green);">president@njta.gov</a><br>
+        <em style="color:var(--text-light);font-size:0.82rem;">Replace with actual contact info.</em>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── FAQ ── -->
+<section class="section section-alt" id="faq" style="background:var(--white);">
+  <div class="section-eyebrow">FAQ</div>
+  <h2>Common questions</h2>
+
+  <div class="faq-list" style="max-width:680px;">
+    <div class="faq-item">
+      <div class="faq-q">Do I need experience with public speaking?</div>
+      <div class="faq-a">Not at all. Toastmasters is designed for all levels, from people who are
+        terrified of speaking in front of others to seasoned professionals who want to sharpen
+        their edge. You set your own pace.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Do I have to speak at every meeting?</div>
+      <div class="faq-a">No. Members can attend and observe, serve in a meeting role, or deliver a speech —
+        whatever they're comfortable with. Table Topics participation is sometimes open to guests
+        and is always optional for new members.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">What is Pathways?</div>
+      <div class="faq-a">Pathways is Toastmasters International's online learning program. You choose a
+        "path" focused on a skill set — like Presentation Mastery, Leadership Development, or
+        Persuasive Influence — and complete a series of speech projects to earn a credential.
+        There are 11 paths available.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Can I attend if I'm not an NJTA employee?</div>
+      <div class="faq-a">This is a corporate club for NJTA employees and staff. Guests are welcome to attend
+        a meeting to see what it's like, but active membership requires NJTA employment.
+        <em style="color:var(--text-light);">Confirm and update this policy with your club officers.</em></div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">How do I sign up for a role or speaking slot?</div>
+      <div class="faq-a">Once you're a member, log into OnRamp (this site) with your email. Upcoming meetings
+        will show all open roles and speaker slots — just click to claim one. No more chasing
+        down the VP of Education by email the day before a meeting.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Is there a time commitment?</div>
+      <div class="faq-a">Meetings run about 60–75 minutes, twice a month. Beyond attendance, how active you are
+        is entirely up to you. Signing up for roles and speeches is encouraged but never required.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Is dues cost reimbursable through NJTA?</div>
+      <div class="faq-a">Yes. NJTA reimburses your full membership dues if, within a 6-month eligibility
+        period (Apr 1–Sep 30 or Oct 1–Mar 31), you attend at least 3 meetings and complete at least
+        1 Pathways project. Submit the reimbursement form to your supervisor like any other expense.
+        See the Membership section above for details, or contact a club officer for the current form.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Do I have to be a confident speaker to participate in a meeting role?</div>
+      <div class="faq-a">No — most roles aren't about delivering a speech at all. The Timer tracks how long
+        each speaker talks, the Grammarian introduces a "word of the day" and notes good language use,
+        the Ah-Counter tallies filler words, and the Table Topics Master runs the impromptu speaking
+        segment. Each is a low-pressure way to get comfortable before tackling a prepared speech.</div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── CTA band ── -->
+<div class="cta-band">
+  <h2>Come check us out</h2>
+  <p>No signup, no commitment. Just show up to any meeting and see what it's all about.
+     We'd love to have you.</p>
+  <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+    <a href="#meetings" class="btn-hero-primary">See meeting schedule</a>
+    <a href="login.html" class="btn-hero-outline">Member login</a>
+  </div>
+</div>
+
+
+<!-- ── Footer ── -->
+<footer class="footer">
+  <p>
+    <strong style="color:rgba(255,255,255,0.8);">NJTA Toastmasters</strong> — Club #XXXXXX &nbsp;·&nbsp;
+    Woodbridge, NJ &nbsp;·&nbsp;
+    <a href="https://www.toastmasters.org" target="_blank">toastmasters.org</a>
+  </p>
+  <p style="margin-top:4px;">
+    Questions? Email <a href="mailto:president@njta.gov">your club president</a> &nbsp;·&nbsp;
+    <a href="login.html">Member login</a>
+  </p>
+  <p style="margin-top:8px;font-size:0.7rem;opacity:0.5;">
+    OnRamp is an unofficial club tool, not affiliated with or endorsed by Toastmasters International.
+  </p>
+</footer>
+
+</body>
+</html>

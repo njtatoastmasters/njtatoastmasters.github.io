@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Speeches — OnRamp</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="dashboard.html" class="nav-brand">
+    <div class="nav-logo">
+      <svg viewBox="0 0 18 18" fill="none">
+        <rect x="6" y="1" width="6" height="10" rx="3" fill="#004D2B"/>
+        <path d="M2 8a7 7 0 0 0 14 0" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="9" y1="15" x2="9" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="5" y1="17" x2="13" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="nav-title">OnRamp</div>
+      <div class="nav-subtitle">NJTA Toastmasters</div>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="meetings.html">Meetings</a></li>
+    <li><a href="my-speeches.html">My Speeches</a></li>
+    <li><a href="members.html">Members</a></li>
+    <li><a href="admin.html" id="nav-admin" style="display:none">Admin</a></li>
+  </ul>
+  <div class="nav-user">
+    <span id="nav-user-name"></span>
+    <div class="nav-avatar" id="nav-avatar"></div>
+    <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1>My speeches</h1>
+      <p>Your Pathways journey at NJTA Toastmasters.</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('modal-add-speech')">+ Log a speech</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-bottom:2rem;">
+    <div class="stat-card">
+      <div class="stat-value" id="stat-total">—</div>
+      <div class="stat-label">Total speeches</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-roles">—</div>
+      <div class="stat-label">Roles served</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-paths">—</div>
+      <div class="stat-label">Paths active</div>
+    </div>
+  </div>
+
+  <hr class="road-line">
+
+  <!-- Speech history table -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Speech history</span>
+    </div>
+    <div id="speeches-table">
+      <div class="empty-state">
+        <div class="empty-state-icon">🎤</div>
+        <h3>No speeches yet</h3>
+        <p>Sign up for a speaker slot on the meetings page, or log a past speech using the button above.</p>
+        <a href="meetings.html" class="btn btn-primary">Find a meeting</a>
+      </div>
+    </div>
+  </div>
+
+  <hr class="road-line">
+
+  <!-- Roles history -->
+  <div class="card" style="margin-top:1.5rem;">
+    <div class="card-header">
+      <span class="card-title">Meeting roles</span>
+    </div>
+    <div id="roles-table">
+      <div class="empty-state"><p>Loading…</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/edit speech modal -->
+<div class="modal-overlay" id="modal-add-speech">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-speech-title">Log a speech</span>
+      <button class="modal-close" onclick="closeModal('modal-add-speech')">✕</button>
+    </div>
+    <div class="form-group">
+      <label for="s-title">Speech title</label>
+      <input type="text" id="s-title" placeholder="e.g. The Road Not Taken">
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group">
+        <label for="s-pathway">Pathways path</label>
+        <select id="s-pathway">
+          <option value="">Select path…</option>
+          <option>Presentation Mastery</option>
+          <option>Persuasive Influence</option>
+          <option>Dynamic Leadership</option>
+          <option>Innovative Planning</option>
+          <option>Motivational Strategies</option>
+          <option>Strategic Relationships</option>
+          <option>Visionary Communication</option>
+          <option>Effective Coaching</option>
+          <option>Team Collaboration</option>
+          <option>Leadership Development</option>
+          <option>Active Listening</option>
+          <option>Engaging Humor</option>
+          <option value="CC">Classic Communicator (CC)</option>
+          <option value="other">Other / Not in Pathways</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="s-project">Project / level</label>
+        <input type="text" id="s-project" placeholder="e.g. Level 2 – Research">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="s-date">Date delivered</label>
+      <input type="date" id="s-date">
+    </div>
+    <div class="form-group">
+      <label for="s-notes">Notes to self <span style="color:var(--text-light);font-weight:400;text-transform:none;">(optional)</span></label>
+      <textarea id="s-notes" placeholder="Key takeaways, feedback received, what to work on…" style="min-height:70px;"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-speech')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSpeech()">Save speech</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let editingId = null;
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../index.html'; return; }
+  currentUser = session.user;
+
+  const { data: profile } = await sb.from('members').select('*').eq('id', currentUser.id).single();
+  if (profile) {
+    const first = profile.full_name.split(' ')[0];
+    document.getElementById('nav-user-name').textContent = first;
+    const initials = profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2);
+    document.getElementById('nav-avatar').textContent = initials;
+    if (profile.role === 'admin') document.getElementById('nav-admin').style.display = '';
+  }
+
+  // Set date default
+  document.getElementById('s-date').value = new Date().toISOString().split('T')[0];
+
+  await loadAll();
+}
+
+async function loadAll() {
+  const [{ data: speeches, error: e1 }, { data: roles }] = await Promise.all([
+    sb.from('speeches').select('*, meetings(meeting_date, title)').eq('member_id', currentUser.id).order('delivered_at', { ascending: false }),
+    sb.from('meeting_roles').select('*, meetings(meeting_date, title)').eq('member_id', currentUser.id).order('created_at', { ascending: false }),
+  ]);
+
+  // Stats
+  const paths = new Set((speeches || []).map(s => s.pathway).filter(Boolean));
+  document.getElementById('stat-total').textContent = (speeches || []).length;
+  document.getElementById('stat-roles').textContent = (roles || []).length;
+  document.getElementById('stat-paths').textContent = paths.size;
+
+  // Speeches table
+  const stEl = document.getElementById('speeches-table');
+  if (!speeches || speeches.length === 0) {
+    stEl.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">🎤</div>
+      <h3>No speeches yet</h3>
+      <p>Sign up for a speaker slot on the meetings page, or log a past speech above.</p>
+      <a href="meetings.html" class="btn btn-primary">Find a meeting</a>
+    </div>`;
+  } else {
+    stEl.innerHTML = `<table class="data-table">
+      <thead><tr>
+        <th>Date</th><th>Title</th><th>Path</th><th>Project</th><th></th>
+      </tr></thead>
+      <tbody>${speeches.map(s => `<tr>
+        <td style="white-space:nowrap;color:var(--text-muted)">${s.delivered_at ? formatDate(s.delivered_at) : formatMeetingDate(s.meetings?.meeting_date)}</td>
+        <td><strong>${s.speech_title || '—'}</strong></td>
+        <td><span class="badge badge-green">${s.pathway || '—'}</span></td>
+        <td style="color:var(--text-muted)">${s.project_name || '—'}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="editSpeech(${JSON.stringify(s).replace(/"/g,'&quot;')})">Edit</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+
+  // Roles table
+  const rtEl = document.getElementById('roles-table');
+  if (!roles || roles.length === 0) {
+    rtEl.innerHTML = `<div class="empty-state"><p>No roles on record yet. Sign up for a role on the meetings page.</p></div>`;
+  } else {
+    const ROLE_NAMES = {tmod:'Toastmaster of the Day',ge:'General Evaluator',topicsmaster:'Table Topics Master',timer:'Timer',ah_counter:'Ah-Counter',grammarian:'Grammarian',ballot_counter:'Ballot Counter',sergeant:'Sergeant at Arms'};
+    rtEl.innerHTML = `<table class="data-table">
+      <thead><tr><th>Date</th><th>Role</th><th>Meeting</th></tr></thead>
+      <tbody>${roles.map(r => `<tr>
+        <td style="white-space:nowrap;color:var(--text-muted)">${formatMeetingDate(r.meetings?.meeting_date)}</td>
+        <td><strong>${ROLE_NAMES[r.role_id] || r.role_id}</strong></td>
+        <td style="color:var(--text-muted)">${r.meetings?.title || 'Regular Meeting'}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+}
+
+async function saveSpeech() {
+  const btn = event.target;
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  const payload = {
+    member_id: currentUser.id,
+    speech_title: document.getElementById('s-title').value.trim() || null,
+    pathway: document.getElementById('s-pathway').value || null,
+    project_name: document.getElementById('s-project').value.trim() || null,
+    delivered_at: document.getElementById('s-date').value || null,
+    notes: document.getElementById('s-notes').value.trim() || null,
+  };
+
+  let error;
+  if (editingId) {
+    ({ error } = await sb.from('speeches').update(payload).eq('id', editingId));
+  } else {
+    ({ error } = await sb.from('speeches').insert(payload));
+  }
+
+  btn.textContent = 'Save speech'; btn.disabled = false;
+  closeModal('modal-add-speech');
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast(editingId ? 'Speech updated.' : 'Speech logged!', 'success');
+  editingId = null;
+  await loadAll();
+}
+
+function editSpeech(s) {
+  editingId = s.id;
+  document.getElementById('modal-speech-title').textContent = 'Edit speech';
+  document.getElementById('s-title').value = s.speech_title || '';
+  document.getElementById('s-pathway').value = s.pathway || '';
+  document.getElementById('s-project').value = s.project_name || '';
+  document.getElementById('s-date').value = s.delivered_at || '';
+  document.getElementById('s-notes').value = s.notes || '';
+  openModal('modal-add-speech');
+}
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatMeetingDate(d) {
+  if (!d) return '—';
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function showToast(msg, type = '') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`; t.textContent = msg; c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('click', e => { if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('open'); });
+function signOut() { sb.auth.signOut().then(() => window.location.href = '../index.html'); }
+
+init();
+</script>
+</body>
+</html>

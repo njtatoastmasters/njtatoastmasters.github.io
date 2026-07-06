@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meetings — OnRamp</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="dashboard.html" class="nav-brand">
+    <div class="nav-logo">
+      <svg viewBox="0 0 18 18" fill="none">
+        <rect x="6" y="1" width="6" height="10" rx="3" fill="#004D2B"/>
+        <path d="M2 8a7 7 0 0 0 14 0" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="9" y1="15" x2="9" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="5" y1="17" x2="13" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="nav-title">OnRamp</div>
+      <div class="nav-subtitle">NJTA Toastmasters</div>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="meetings.html">Meetings</a></li>
+    <li><a href="my-speeches.html">My Speeches</a></li>
+    <li><a href="members.html">Members</a></li>
+    <li><a href="admin.html" id="nav-admin" style="display:none">Admin</a></li>
+  </ul>
+  <div class="nav-user">
+    <span id="nav-user-name"></span>
+    <div class="nav-avatar" id="nav-avatar"></div>
+    <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>Meetings</h1>
+    <p>Sign up for roles and speaker slots. Every slot counts.</p>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:1.5rem;">
+    <button class="tab-btn active" onclick="switchTab('upcoming', this)">Upcoming</button>
+    <button class="tab-btn" onclick="switchTab('past', this)">Past meetings</button>
+  </div>
+
+  <div id="tab-upcoming">
+    <div id="upcoming-list"><div class="empty-state"><p>Loading…</p></div></div>
+  </div>
+
+  <div id="tab-past" style="display:none;">
+    <div id="past-list"><div class="empty-state"><p>Loading…</p></div></div>
+  </div>
+</div>
+
+<!-- Role sign-up modal -->
+<div class="modal-overlay" id="modal-role">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-role-title">Sign up for role</span>
+      <button class="modal-close" onclick="closeModal('modal-role')">✕</button>
+    </div>
+    <p id="modal-role-desc" style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem;"></p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-role')">Cancel</button>
+      <button class="btn btn-primary" id="modal-role-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Speaker sign-up modal -->
+<div class="modal-overlay" id="modal-speaker">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Sign up as speaker</span>
+      <button class="modal-close" onclick="closeModal('modal-speaker')">✕</button>
+    </div>
+    <div class="form-group">
+      <label for="speech-title">Speech title <span style="color:var(--text-light);font-weight:400;text-transform:none;">(you can update this later)</span></label>
+      <input type="text" id="speech-title" placeholder="e.g. The Road Not Taken">
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group">
+        <label for="speech-pathway">Pathways path</label>
+        <select id="speech-pathway">
+          <option value="">Select path…</option>
+          <option>Presentation Mastery</option>
+          <option>Persuasive Influence</option>
+          <option>Dynamic Leadership</option>
+          <option>Innovative Planning</option>
+          <option>Motivational Strategies</option>
+          <option>Strategic Relationships</option>
+          <option>Visionary Communication</option>
+          <option>Effective Coaching</option>
+          <option>Team Collaboration</option>
+          <option>Leadership Development</option>
+          <option>Active Listening</option>
+          <option>Engaging Humor</option>
+          <option value="CC">Classic Communicator (CC)</option>
+          <option value="other">Other / Not in Pathways</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="speech-project">Project name / number</label>
+        <input type="text" id="speech-project" placeholder="e.g. Level 2 – Research">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="speech-notes">Notes for your evaluator <span style="color:var(--text-light);font-weight:400;text-transform:none;">(optional)</span></label>
+      <textarea id="speech-notes" placeholder="What would you like feedback on?"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-speaker')">Cancel</button>
+      <button class="btn btn-amber" onclick="confirmSpeakerSignup()">Sign me up</button>
+    </div>
+  </div>
+</div>
+
+<!-- Drop role confirmation modal -->
+<div class="modal-overlay" id="modal-drop">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Drop this slot?</span>
+      <button class="modal-close" onclick="closeModal('modal-drop')">✕</button>
+    </div>
+    <p id="modal-drop-desc" style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem;"></p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-drop')">Keep it</button>
+      <button class="btn btn-danger" id="modal-drop-btn">Yes, drop it</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+let pendingAction = null;
+
+const ROLES = [
+  { id: 'tmod', name: 'Toastmaster of the Day' },
+  { id: 'ge', name: 'General Evaluator' },
+  { id: 'topicsmaster', name: 'Table Topics Master' },
+  { id: 'timer', name: 'Timer' },
+  { id: 'ah_counter', name: 'Ah-Counter' },
+  { id: 'grammarian', name: 'Grammarian' },
+  { id: 'ballot_counter', name: 'Ballot Counter' },
+  { id: 'sergeant', name: 'Sergeant at Arms' },
+];
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../index.html'; return; }
+  currentUser = session.user;
+
+  const { data: profile } = await sb.from('members').select('*').eq('id', currentUser.id).single();
+  currentProfile = profile;
+  if (profile) {
+    const first = profile.full_name.split(' ')[0];
+    document.getElementById('nav-user-name').textContent = first;
+    const initials = profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2);
+    document.getElementById('nav-avatar').textContent = initials;
+    if (profile.role === 'admin') document.getElementById('nav-admin').style.display = '';
+  }
+
+  loadUpcoming();
+}
+
+async function loadUpcoming() {
+  const today = new Date().toISOString().split('T')[0];
+  const { data: meetings } = await sb
+    .from('meetings')
+    .select(`*, meeting_roles(*, members(full_name)), speaker_slots(*, members(full_name))`)
+    .gte('meeting_date', today)
+    .order('meeting_date');
+
+  const el = document.getElementById('upcoming-list');
+  if (!meetings || meetings.length === 0) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">📅</div>
+      <h3>No upcoming meetings</h3>
+      <p>Check back soon — your admin will post the next meeting.</p>
+    </div>`;
+    return;
+  }
+  el.innerHTML = meetings.map(m => renderFullMeeting(m)).join('<hr class="road-line">');
+
+  // Scroll to anchor if present
+  const hash = window.location.hash;
+  if (hash) { const el = document.querySelector(hash); if (el) el.scrollIntoView({ behavior: 'smooth' }); }
+}
+
+async function loadPast() {
+  const today = new Date().toISOString().split('T')[0];
+  const { data: meetings } = await sb
+    .from('meetings')
+    .select(`*, meeting_roles(*, members(full_name)), speaker_slots(*, members(full_name))`)
+    .lt('meeting_date', today)
+    .order('meeting_date', { ascending: false })
+    .limit(10);
+
+  const el = document.getElementById('past-list');
+  if (!meetings || meetings.length === 0) {
+    el.innerHTML = `<div class="empty-state"><p>No past meetings on record yet.</p></div>`;
+    return;
+  }
+  el.innerHTML = meetings.map(m => renderFullMeeting(m, true)).join('<hr class="road-line">');
+}
+
+function renderFullMeeting(m, isPast = false) {
+  const d = formatDateShort(m.meeting_date);
+  const roles = m.meeting_roles || [];
+  const speakers = m.speaker_slots || [];
+
+  const roleSlots = ROLES.map(role => {
+    const filled = roles.find(r => r.role_id === role.id);
+    const isMe = filled && filled.member_id === currentUser.id;
+    if (isPast) {
+      return `<div class="role-slot ${filled ? 'filled' : ''}">
+        <div><div class="role-name">${role.name}</div>
+        <div class="role-person">${filled ? filled.members?.full_name || 'Unknown' : 'Open'}</div></div>
+      </div>`;
+    }
+    if (isMe) {
+      return `<div class="role-slot mine">
+        <div><div class="role-name">${role.name}</div><div class="role-person">You</div></div>
+        <button class="btn btn-danger btn-sm" onclick="openDropRole('${m.id}','${role.id}','${role.name}')">Drop</button>
+      </div>`;
+    }
+    if (filled) {
+      return `<div class="role-slot filled">
+        <div><div class="role-name">${role.name}</div><div class="role-person">${filled.members?.full_name || 'Taken'}</div></div>
+      </div>`;
+    }
+    return `<div class="role-slot">
+      <div><div class="role-name">${role.name}</div><div class="role-person">Open</div></div>
+      <button class="btn btn-outline btn-sm" onclick="openRoleSignup('${m.id}','${role.id}','${role.name}')">Take it</button>
+    </div>`;
+  }).join('');
+
+  const maxSpeakers = m.speaker_slots_count || 3;
+  const speakerSlots = Array.from({ length: maxSpeakers }, (_, i) => {
+    const slot = speakers[i];
+    const isMe = slot && slot.member_id === currentUser.id;
+    if (isPast) {
+      return `<div class="speaker-slot ${slot ? 'filled' : ''}">
+        <div class="speaker-num">${i + 1}</div>
+        <div class="speaker-info">
+          ${slot ? `<div class="speaker-name">${slot.members?.full_name || 'Unknown'}</div>
+          <div class="speaker-title">${slot.speech_title || 'Title TBD'}</div>
+          <div class="speaker-project">${[slot.pathway, slot.project_name].filter(Boolean).join(' · ')}</div>` 
+          : '<div class="speaker-name" style="color:var(--text-light)">Open slot</div>'}
+        </div>
+      </div>`;
+    }
+    if (isMe) {
+      return `<div class="speaker-slot filled">
+        <div class="speaker-num">${i + 1}</div>
+        <div class="speaker-info">
+          <div class="speaker-name">You</div>
+          <div class="speaker-title">${slot.speech_title || 'Title TBD — click edit to add'}</div>
+          <div class="speaker-project">${[slot.pathway, slot.project_name].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-outline btn-sm" onclick="openEditSpeaker('${m.id}','${slot.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="openDropSpeaker('${m.id}','${slot.id}')">Drop</button>
+        </div>
+      </div>`;
+    }
+    if (slot) {
+      return `<div class="speaker-slot filled">
+        <div class="speaker-num">${i + 1}</div>
+        <div class="speaker-info">
+          <div class="speaker-name">${slot.members?.full_name || 'Taken'}</div>
+          <div class="speaker-title">${slot.speech_title || 'Title TBD'}</div>
+          <div class="speaker-project">${[slot.pathway, slot.project_name].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>`;
+    }
+    return `<div class="speaker-slot">
+      <div class="speaker-num">${i + 1}</div>
+      <div class="speaker-info"><div class="speaker-name" style="color:var(--text-muted)">Open speaker slot</div></div>
+      <button class="btn btn-amber btn-sm" onclick="openSpeakerSignup('${m.id}', null)">Sign up</button>
+    </div>`;
+  }).join('');
+
+  const openRoles = ROLES.length - roles.length;
+  const openSpeakers = maxSpeakers - speakers.filter(s => s.member_id).length;
+
+  return `<div id="meeting-${m.id}">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+      <div class="meeting-date-block">
+        <div class="meeting-date-icon">
+          <div class="month">${d.month}</div>
+          <div class="day">${d.day}</div>
+        </div>
+        <div class="meeting-info">
+          <h3 style="font-size:1.2rem;">${m.title || 'Regular Meeting'}</h3>
+          <div class="meeting-meta">${formatTime(m.meeting_time)} · ${m.location || 'Location TBD'}</div>
+          ${m.notes ? `<div class="meeting-meta" style="margin-top:4px;">${m.notes}</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        ${!isPast && openRoles > 0 ? `<span class="badge badge-amber">${openRoles} role${openRoles!==1?'s':''} open</span>` : ''}
+        ${!isPast && openSpeakers > 0 ? `<span class="badge badge-amber">${openSpeakers} speaker slot${openSpeakers!==1?'s':''} open</span>` : ''}
+        ${!isPast && openRoles === 0 && openSpeakers === 0 ? `<span class="badge badge-green">Fully filled</span>` : ''}
+        <a href="agenda.html?id=${m.id}" class="btn btn-outline btn-sm" target="_blank">View agenda</a>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-header"><span class="card-title">Meeting roles</span></div>
+      <div class="roles-grid">${roleSlots}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Prepared speakers</span></div>
+      <div style="padding:0 0.25rem;">${speakerSlots}</div>
+    </div>
+  </div>`;
+}
+
+// ── Role sign-up ──────────────────────────────────────────────────────────────
+
+let pendingRoleSignup = null;
+
+function openRoleSignup(meetingId, roleId, roleName) {
+  pendingRoleSignup = { meetingId, roleId, type: 'add' };
+  document.getElementById('modal-role-title').textContent = roleName;
+  document.getElementById('modal-role-desc').textContent = `You're signing up as ${roleName}. You can drop this role up until the day before the meeting.`;
+  document.getElementById('modal-role-btn').textContent = 'Confirm sign-up';
+  document.getElementById('modal-role-btn').onclick = confirmRoleSignup;
+  openModal('modal-role');
+}
+
+async function confirmRoleSignup() {
+  if (!pendingRoleSignup) return;
+  const { meetingId, roleId } = pendingRoleSignup;
+  const btn = document.getElementById('modal-role-btn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  const { error } = await sb.from('meeting_roles').insert({
+    meeting_id: meetingId,
+    role_id: roleId,
+    member_id: currentUser.id,
+  });
+
+  btn.textContent = 'Confirm sign-up'; btn.disabled = false;
+  closeModal('modal-role');
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('You\'re signed up!', 'success');
+  loadUpcoming();
+}
+
+// ── Drop role ─────────────────────────────────────────────────────────────────
+
+let pendingDrop = null;
+
+function openDropRole(meetingId, roleId, roleName) {
+  pendingDrop = { meetingId, roleId, type: 'role' };
+  document.getElementById('modal-drop-desc').textContent = `Are you sure you want to drop the ${roleName} role? The slot will become open again.`;
+  document.getElementById('modal-drop-btn').onclick = confirmDrop;
+  openModal('modal-drop');
+}
+
+function openDropSpeaker(meetingId, slotId) {
+  pendingDrop = { meetingId, slotId, type: 'speaker' };
+  document.getElementById('modal-drop-desc').textContent = 'Are you sure you want to drop your speaker slot? Your speech details will be removed.';
+  document.getElementById('modal-drop-btn').onclick = confirmDrop;
+  openModal('modal-drop');
+}
+
+async function confirmDrop() {
+  if (!pendingDrop) return;
+  const btn = document.getElementById('modal-drop-btn');
+  btn.textContent = 'Dropping…'; btn.disabled = true;
+
+  let error;
+  if (pendingDrop.type === 'role') {
+    ({ error } = await sb.from('meeting_roles')
+      .delete()
+      .eq('meeting_id', pendingDrop.meetingId)
+      .eq('role_id', pendingDrop.roleId)
+      .eq('member_id', currentUser.id));
+  } else {
+    ({ error } = await sb.from('speaker_slots')
+      .update({ member_id: null, speech_title: null, pathway: null, project_name: null, evaluator_notes: null })
+      .eq('id', pendingDrop.slotId)
+      .eq('member_id', currentUser.id));
+  }
+
+  btn.textContent = 'Yes, drop it'; btn.disabled = false;
+  closeModal('modal-drop');
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('Slot dropped.', '');
+  loadUpcoming();
+}
+
+// ── Speaker sign-up ───────────────────────────────────────────────────────────
+
+let pendingSpeakerMeeting = null;
+let editingSlotId = null;
+
+function openSpeakerSignup(meetingId) {
+  pendingSpeakerMeeting = meetingId;
+  editingSlotId = null;
+  ['speech-title', 'speech-pathway', 'speech-project', 'speech-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  openModal('modal-speaker');
+}
+
+function openEditSpeaker(meetingId, slotId) {
+  pendingSpeakerMeeting = meetingId;
+  editingSlotId = slotId;
+  openModal('modal-speaker');
+}
+
+async function confirmSpeakerSignup() {
+  const btn = document.querySelector('#modal-speaker .btn-amber');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  const payload = {
+    member_id: currentUser.id,
+    speech_title: document.getElementById('speech-title').value.trim() || null,
+    pathway: document.getElementById('speech-pathway').value || null,
+    project_name: document.getElementById('speech-project').value.trim() || null,
+    evaluator_notes: document.getElementById('speech-notes').value.trim() || null,
+  };
+
+  let error;
+  if (editingSlotId) {
+    ({ error } = await sb.from('speaker_slots').update(payload).eq('id', editingSlotId));
+  } else {
+    // Find the first open slot for this meeting
+    const { data: openSlot } = await sb.from('speaker_slots')
+      .select('id').eq('meeting_id', pendingSpeakerMeeting).is('member_id', null).limit(1).single();
+    if (!openSlot) { showToast('No open speaker slots found.', 'error'); btn.textContent = 'Sign me up'; btn.disabled = false; return; }
+    ({ error } = await sb.from('speaker_slots').update(payload).eq('id', openSlot.id));
+
+    // Also log to speeches history
+    if (!error) {
+      await sb.from('speeches').insert({
+        member_id: currentUser.id,
+        meeting_id: pendingSpeakerMeeting,
+        speech_title: payload.speech_title,
+        pathway: payload.pathway,
+        project_name: payload.project_name,
+        speaker_slot_id: openSlot.id,
+      });
+    }
+  }
+
+  btn.textContent = 'Sign me up'; btn.disabled = false;
+  closeModal('modal-speaker');
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast("You're on the agenda!", 'success');
+  loadUpcoming();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-upcoming').style.display = tab === 'upcoming' ? '' : 'none';
+  document.getElementById('tab-past').style.display = tab === 'past' ? '' : 'none';
+  if (tab === 'past') loadPast();
+}
+
+function formatDateShort(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return { month: d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(), day: d.getDate() };
+}
+
+function formatTime(t) {
+  if (!t) return 'Time TBD';
+  const [h, m] = t.split(':');
+  const hr = parseInt(h); const ampm = hr >= 12 ? 'PM' : 'AM';
+  return `${hr % 12 || 12}:${m} ${ampm}`;
+}
+
+function showToast(msg, type = '') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`; t.textContent = msg; c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('click', e => { if (e.target.classList.contains('modal-overlay')) { e.target.classList.remove('open'); }});
+
+function signOut() { sb.auth.signOut().then(() => window.location.href = '../index.html'); }
+
+init();
+</script>
+</body>
+</html>

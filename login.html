@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Member Login — OnRamp NJTA Toastmasters</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-card">
+
+    <div class="login-brand">
+      <div class="login-logo">
+        <!-- Microphone icon -->
+        <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="2" width="8" height="14" rx="4" fill="#004D2B"/>
+          <path d="M5 13a9 9 0 0 0 18 0" stroke="#004D2B" stroke-width="2" stroke-linecap="round"/>
+          <line x1="14" y1="22" x2="14" y2="26" stroke="#004D2B" stroke-width="2" stroke-linecap="round"/>
+          <line x1="9" y1="26" x2="19" y2="26" stroke="#004D2B" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="login-title">OnRamp</div>
+      <div class="login-subtitle">NJTA Toastmasters Club Portal</div>
+    </div>
+
+    <div class="login-divider"></div>
+
+    <!-- Magic link form -->
+    <div id="form-request">
+      <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1.25rem;text-align:center;">
+        Enter your email to receive a sign-in link. No password needed.
+      </p>
+      <div class="form-group">
+        <label for="email">Email address</label>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div id="login-alert" style="display:none;"></div>
+      <button class="btn btn-primary btn-full btn-lg" onclick="sendMagicLink()">
+        Send sign-in link
+      </button>
+    </div>
+
+    <!-- Confirmation state -->
+    <div id="form-sent" style="display:none;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:0.75rem;">✉️</div>
+      <h3 style="font-family:'Oswald',sans-serif;font-size:1.2rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--green-dark);margin-bottom:0.5rem;">Check your inbox</h3>
+      <p style="font-size:0.875rem;color:var(--text-muted);">
+        We sent a sign-in link to <strong id="sent-email"></strong>.<br>
+        Click the link in the email to log in. It expires in 1 hour.
+      </p>
+      <button class="btn btn-ghost btn-full" style="margin-top:1.25rem;" onclick="resetForm()">
+        Try a different email
+      </button>
+    </div>
+
+    <div class="login-divider"></div>
+    <p style="font-size:0.75rem;color:var(--text-light);text-align:center;">
+      Don't have an account? Ask your club admin to add you.
+    </p>
+    <p style="font-size:0.75rem;text-align:center;margin-top:10px;">
+      <a href="index.html" style="color:var(--green);text-decoration:none;font-weight:500;">← Back to club home</a>
+    </p>
+
+  </div>
+</div>
+
+<script>
+  const { createClient } = supabase;
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // If already logged in, go to dashboard
+  sb.auth.getSession().then(({ data }) => {
+    if (data.session) window.location.href = 'pages/dashboard.html';
+  });
+
+  // Handle auth callback (when user clicks magic link)
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      window.location.href = 'pages/dashboard.html';
+    }
+  });
+
+
+  async function sendMagicLink() {
+    const email = document.getElementById('email').value.trim();
+    const alertEl = document.getElementById('login-alert');
+
+    if (!email) {
+      showAlert('Please enter your email address.', 'danger');
+      return;
+    }
+
+    const btn = event.target;
+    btn.textContent = 'Sending…';
+    btn.disabled = true;
+
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.origin + '/pages/dashboard.html'
+      }
+    });
+
+    if (error) {
+      showAlert(error.message, 'danger');
+      btn.textContent = 'Send sign-in link';
+      btn.disabled = false;
+    } else {
+      document.getElementById('form-request').style.display = 'none';
+      document.getElementById('sent-email').textContent = email;
+      document.getElementById('form-sent').style.display = 'block';
+    }
+  }
+
+  function showAlert(msg, type) {
+    const el = document.getElementById('login-alert');
+    el.className = `alert alert-${type}`;
+    el.textContent = msg;
+    el.style.display = 'flex';
+  }
+
+  function resetForm() {
+    document.getElementById('form-request').style.display = 'block';
+    document.getElementById('form-sent').style.display = 'none';
+    document.getElementById('email').value = '';
+  }
+
+  document.getElementById('email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendMagicLink();
+  });
+</script>
+</body>
+</html>

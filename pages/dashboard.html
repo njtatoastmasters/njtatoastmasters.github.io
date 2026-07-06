@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — OnRamp</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="dashboard.html" class="nav-brand">
+    <div class="nav-logo">
+      <svg viewBox="0 0 18 18" fill="none">
+        <rect x="6" y="1" width="6" height="10" rx="3" fill="#004D2B"/>
+        <path d="M2 8a7 7 0 0 0 14 0" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="9" y1="15" x2="9" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="5" y1="17" x2="13" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="nav-title">OnRamp</div>
+      <div class="nav-subtitle">NJTA Toastmasters</div>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="meetings.html">Meetings</a></li>
+    <li><a href="my-speeches.html">My Speeches</a></li>
+    <li><a href="members.html">Members</a></li>
+    <li><a href="admin.html" id="nav-admin" style="display:none">Admin</a></li>
+  </ul>
+  <div class="nav-user">
+    <span id="nav-user-name"></span>
+    <div class="nav-avatar" id="nav-avatar"></div>
+    <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+
+  <div class="page-header">
+    <h1 id="welcome-heading">Welcome back</h1>
+    <p>Here's what's coming up for NJTA Toastmasters.</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row" id="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="stat-speeches">—</div>
+      <div class="stat-label">Your speeches</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-roles">—</div>
+      <div class="stat-label">Roles served</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-next">—</div>
+      <div class="stat-label">Days to next meeting</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-open">—</div>
+      <div class="stat-label">Open slots</div>
+    </div>
+  </div>
+
+  <hr class="road-line">
+
+  <!-- Next meeting volunteer call -->
+  <div id="next-meeting-section"></div>
+
+  <hr class="road-line">
+
+  <!-- Upcoming meetings list -->
+  <div class="card-header" style="margin-bottom:1rem;">
+    <span class="card-title">Upcoming meetings</span>
+    <a href="meetings.html" class="btn btn-outline btn-sm">View all</a>
+  </div>
+
+  <div id="meetings-list">
+    <div class="empty-state"><p>Loading meetings…</p></div>
+  </div>
+
+</div>
+
+<!-- Sign-up modal -->
+<div class="modal-overlay" id="modal-signup">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-signup-title">Sign up</span>
+      <button class="modal-close" onclick="closeModal('modal-signup')">✕</button>
+    </div>
+    <div id="modal-signup-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-signup')">Cancel</button>
+      <button class="btn btn-primary" id="modal-signup-confirm" onclick="confirmSignup()">Confirm sign-up</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+let pendingSignup = null;
+
+const ROLES = [
+  { id: 'tmod', name: 'Toastmaster of the Day' },
+  { id: 'ge', name: 'General Evaluator' },
+  { id: 'topicsmaster', name: 'Table Topics Master' },
+  { id: 'timer', name: 'Timer' },
+  { id: 'ah_counter', name: 'Ah-Counter' },
+  { id: 'grammarian', name: 'Grammarian' },
+  { id: 'ballot_counter', name: 'Ballot Counter' },
+  { id: 'sergeant', name: 'Sergeant at Arms' },
+];
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../index.html'; return; }
+
+  currentUser = session.user;
+  const { data: profile } = await sb.from('members').select('*').eq('id', currentUser.id).single();
+  currentProfile = profile;
+
+  if (profile) {
+    const first = profile.full_name.split(' ')[0];
+    document.getElementById('welcome-heading').textContent = `Welcome back, ${first}`;
+    document.getElementById('nav-user-name').textContent = first;
+    const initials = profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2);
+    document.getElementById('nav-avatar').textContent = initials;
+    if (profile.role === 'admin') document.getElementById('nav-admin').style.display = '';
+  }
+
+  await loadStats();
+  await loadMeetings();
+}
+
+async function loadStats() {
+  const [{ count: speeches }, { count: roles }, { data: meetings }] = await Promise.all([
+    sb.from('speeches').select('*', { count: 'exact', head: true }).eq('member_id', currentUser.id),
+    sb.from('meeting_roles').select('*', { count: 'exact', head: true }).eq('member_id', currentUser.id),
+    sb.from('meetings').select('id, meeting_date').gte('meeting_date', new Date().toISOString().split('T')[0]).order('meeting_date').limit(1),
+  ]);
+
+  document.getElementById('stat-speeches').textContent = speeches ?? 0;
+  document.getElementById('stat-roles').textContent = roles ?? 0;
+
+  if (meetings && meetings.length > 0) {
+    const next = new Date(meetings[0].meeting_date + 'T12:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    const days = Math.ceil((next - today) / 86400000);
+    document.getElementById('stat-next').textContent = days === 0 ? 'Today!' : days;
+  } else {
+    document.getElementById('stat-next').textContent = '—';
+  }
+}
+
+async function loadMeetings() {
+  const today = new Date().toISOString().split('T')[0];
+  const { data: meetings } = await sb
+    .from('meetings')
+    .select(`*, meeting_roles(*, members(full_name)), speaker_slots(*, members(full_name))`)
+    .gte('meeting_date', today)
+    .order('meeting_date')
+    .limit(4);
+
+  if (!meetings || meetings.length === 0) {
+    document.getElementById('meetings-list').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📅</div>
+        <h3>No upcoming meetings</h3>
+        <p>An admin will schedule the next meeting soon.</p>
+      </div>`;
+    document.getElementById('stat-open').textContent = '0';
+    return;
+  }
+
+  // Count total open slots across all meetings
+  let totalOpen = 0;
+  meetings.forEach(m => {
+    const filledRoles = (m.meeting_roles || []).length;
+    const filledSpeakers = (m.speaker_slots || []).filter(s => s.member_id).length;
+    totalOpen += (ROLES.length - filledRoles) + (m.speaker_slots_count || 0) - filledSpeakers;
+  });
+  document.getElementById('stat-open').textContent = Math.max(0, totalOpen);
+
+  // Render next meeting as featured
+  const next = meetings[0];
+  renderNextMeeting(next);
+
+  // Render remaining as compact list
+  const listEl = document.getElementById('meetings-list');
+  listEl.innerHTML = meetings.slice(1).map(m => renderMeetingCard(m)).join('') ||
+    '<p style="color:var(--text-muted);font-size:0.875rem;">No other meetings scheduled yet.</p>';
+}
+
+function renderNextMeeting(m) {
+  const d = formatDateShort(m.meeting_date);
+  const filledRoles = m.meeting_roles || [];
+  const myRoles = filledRoles.filter(r => r.member_id === currentUser.id);
+  const mySpeaker = (m.speaker_slots || []).find(s => s.member_id === currentUser.id);
+  const openRoleCount = ROLES.length - filledRoles.length;
+
+  let callToAction = '';
+  if (myRoles.length === 0 && !mySpeaker) {
+    callToAction = `<div class="alert alert-warning" style="margin-bottom:0">
+      <span>You haven't signed up for this meeting yet. <a href="meetings.html" style="color:var(--amber-dark);font-weight:600;">Sign up now →</a></span>
+    </div>`;
+  } else {
+    const assignments = [...myRoles.map(r => ROLES.find(x => x.id === r.role_id)?.name || r.role_id)];
+    if (mySpeaker) assignments.push(`Speaker — "${mySpeaker.speech_title || 'TBD'}"`);
+    callToAction = `<div class="alert alert-success" style="margin-bottom:0">
+      <span>You're signed up as: <strong>${assignments.join(', ')}</strong></span>
+    </div>`;
+  }
+
+  document.getElementById('next-meeting-section').innerHTML = `
+    <div class="card-header" style="margin-bottom:1rem;">
+      <span class="card-title">Next meeting</span>
+      <span class="badge badge-amber">${openRoleCount} open role${openRoleCount !== 1 ? 's' : ''}</span>
+    </div>
+    <div class="meeting-card">
+      <div class="meeting-card-header">
+        <div class="meeting-date-block">
+          <div class="meeting-date-icon">
+            <div class="month">${d.month}</div>
+            <div class="day">${d.day}</div>
+          </div>
+          <div class="meeting-info">
+            <h3>${m.title || 'Regular Meeting'}</h3>
+            <div class="meeting-meta">${formatTime(m.meeting_time)} · ${m.location || 'Location TBD'}</div>
+          </div>
+        </div>
+        <a href="meetings.html#meeting-${m.id}" class="btn btn-primary btn-sm">View &amp; sign up</a>
+      </div>
+      <div style="padding:0 1.5rem 1.25rem">${callToAction}</div>
+    </div>
+  `;
+}
+
+function renderMeetingCard(m) {
+  const d = formatDateShort(m.meeting_date);
+  const filledRoles = (m.meeting_roles || []).length;
+  const openRoles = ROLES.length - filledRoles;
+  return `
+    <div class="meeting-card">
+      <div class="meeting-card-header">
+        <div class="meeting-date-block">
+          <div class="meeting-date-icon">
+            <div class="month">${d.month}</div>
+            <div class="day">${d.day}</div>
+          </div>
+          <div class="meeting-info">
+            <h3>${m.title || 'Regular Meeting'}</h3>
+            <div class="meeting-meta">${formatTime(m.meeting_time)} · ${m.location || 'TBD'}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="badge ${openRoles > 0 ? 'badge-amber' : 'badge-green'}">${openRoles > 0 ? openRoles + ' open' : 'Filled'}</span>
+          <a href="meetings.html#meeting-${m.id}" class="btn btn-outline btn-sm">View</a>
+        </div>
+      </div>
+    </div>`;
+}
+
+function formatDateShort(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return { month: d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(), day: d.getDate() };
+}
+
+function formatTime(t) {
+  if (!t) return 'Time TBD';
+  const [h, m] = t.split(':');
+  const hr = parseInt(h); const ampm = hr >= 12 ? 'PM' : 'AM';
+  return `${hr % 12 || 12}:${m} ${ampm}`;
+}
+
+function showToast(msg, type = '') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`; t.textContent = msg; c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+
+function signOut() { sb.auth.signOut().then(() => window.location.href = '../index.html'); }
+
+init();
+</script>
+</body>
+</html>
