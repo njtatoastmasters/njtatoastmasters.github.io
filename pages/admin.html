@@ -96,7 +96,7 @@
     </div>
     <div class="form-group">
       <label for="m-location">Location</label>
-      <input type="text" id="m-location" placeholder="e.g. Board Room, 12E">
+      <input type="text" id="m-location" placeholder="e.g. HQ Conference Room B, Floor 14">
     </div>
     <div class="form-row form-row-2">
       <div class="form-group">
@@ -136,7 +136,7 @@
       <button class="modal-close" onclick="closeModal('modal-invite')">✕</button>
     </div>
     <div class="alert alert-info" style="margin-bottom:1.25rem;">
-      This sends the member a magic link email. They'll be able to log in immediately.
+      Add the member here, then send them the site link (<strong>njtatoastmasters.github.io</strong>). They enter their email on the login page to get a magic link and sign in immediately.
     </div>
     <div class="form-group">
       <label for="inv-name">Full name</label>
@@ -156,7 +156,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-invite')">Cancel</button>
-      <button class="btn btn-primary" onclick="inviteMember()">Send invite</button>
+      <button class="btn btn-primary" onclick="inviteMember()">Add member</button>
     </div>
   </div>
 </div>
@@ -231,7 +231,7 @@ async function loadMeetings() {
         <td style="white-space:nowrap;${isPast ? 'color:var(--text-muted)' : ''}">${formatDate(m.meeting_date)}</td>
         <td><strong>${m.title || 'Regular Meeting'}</strong></td>
         <td style="color:var(--text-muted);font-size:0.82rem;">${m.location || '—'}</td>
-        <td><span class="badge ${isPast ? 'badge-gray' : (m.meeting_roles||[]).length >= 8 ? 'badge-green' : 'badge-amber'}">${(m.meeting_roles||[]).length}/8</span></td>
+        <td><span class="badge ${isPast ? 'badge-gray' : (m.meeting_roles||[]).length >= 3 ? 'badge-green' : 'badge-amber'}">${(m.meeting_roles||[]).length}/3</span></td>
         <td><span class="badge ${isPast ? 'badge-gray' : filledSpeakers >= (m.speaker_slots_count||3) ? 'badge-green' : 'badge-amber'}">${filledSpeakers}/${m.speaker_slots_count||3}</span></td>
         <td><a href="agenda.html?id=${m.id}" class="btn btn-ghost btn-sm" target="_blank">View</a></td>
         <td style="display:flex;gap:6px;">
@@ -346,28 +346,20 @@ async function inviteMember() {
   if (!name || !email) { showToast('Name and email are required.', 'error'); return; }
 
   const btn = event.target;
-  btn.textContent = 'Sending…'; btn.disabled = true;
+  btn.textContent = 'Saving…'; btn.disabled = true;
 
-  // Invite via Supabase Auth (sends magic link)
-  const { data, error } = await sb.auth.admin.inviteUserByEmail(email, {
-    data: { full_name: name, role }
-  });
+  // Insert member record directly — they log in via magic link on their own
+  const { error } = await sb.from('members').insert({ full_name: name, email, role });
 
-  // Fallback: if admin API not available on client, just create the member record
-  // and let them sign in via magic link
+  btn.textContent = 'Add member'; btn.disabled = false;
+
   if (error) {
-    // Try inserting into members table directly (admin must approve after first login)
-    const { error: e2 } = await sb.from('members').insert({ full_name: name, email, role });
-    if (e2) {
-      showToast('Error: ' + (error.message || e2.message), 'error');
-      btn.textContent = 'Send invite'; btn.disabled = false;
-      return;
-    }
+    showToast('Error: ' + error.message, 'error');
+    return;
   }
 
-  btn.textContent = 'Send invite'; btn.disabled = false;
   closeModal('modal-invite');
-  showToast(`Invite sent to ${email}`, 'success');
+  showToast(`${name} added. Send them the site link to log in.`, 'success');
   await loadMembers();
 }
 
