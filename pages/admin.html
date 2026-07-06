@@ -348,8 +348,8 @@ async function inviteMember() {
   const btn = event.target;
   btn.textContent = 'Saving…'; btn.disabled = true;
 
-  // Insert member record directly — they log in via magic link on their own
-  const { error } = await sb.from('members').insert({ full_name: name, email, role });
+  // Insert into pending_members — profile is created automatically when they first log in
+  const { error } = await sb.from('pending_members').upsert({ email, full_name: name, role });
 
   btn.textContent = 'Add member'; btn.disabled = false;
 
@@ -359,7 +359,7 @@ async function inviteMember() {
   }
 
   closeModal('modal-invite');
-  showToast(`${name} added. Send them the site link to log in.`, 'success');
+  showToast(`${name} added. Send them njtatoastmasters.github.io to log in.`, 'success');
   await loadMembers();
 }
 
