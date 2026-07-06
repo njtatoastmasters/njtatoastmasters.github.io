@@ -1,8 +1,8 @@
 // ── Supabase configuration ──────────────────────────────────────────────────
 // Replace these values with your own from the Supabase dashboard:
 //   Settings → API → Project URL and anon/public key
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://sxkmvlpzpkoiyvaowdyn.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY = 'sb_publishable_xget8F5pAkCg0LyWsfUf-A_QhgcZWk-';
 
 // Load Supabase from CDN (included in each HTML page)
 const { createClient } = supabase;

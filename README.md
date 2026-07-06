@@ -52,7 +52,7 @@ A lightweight, modern meeting sign-up portal for NJTA Toastmasters. Members log 
 
 ### Step 5 — Add your keys to the site files
 
-Search for `YOUR_SUPABASE_URL` and `YOUR_SUPABASE_ANON_KEY` in all HTML files and replace with your actual values. They appear in:
+Search for `https://sxkmvlpzpkoiyvaowdyn.supabase.co/rest/v1/` and `sb_publishable_xget8F5pAkCg0LyWsfUf-A_QhgcZWk-` in all HTML files and replace with your actual values. They appear in:
 
 - `index.html`
 - `pages/dashboard.html`
