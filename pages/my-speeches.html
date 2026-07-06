@@ -217,7 +217,7 @@ async function loadAll() {
   if (!roles || roles.length === 0) {
     rtEl.innerHTML = `<div class="empty-state"><p>No roles on record yet. Sign up for a role on the meetings page.</p></div>`;
   } else {
-    const ROLE_NAMES = {tmod:'Toastmaster of the Day',ge:'General Evaluator',topicsmaster:'Table Topics Master',timer:'Timer',ah_counter:'Ah-Counter',grammarian:'Grammarian',ballot_counter:'Ballot Counter',sergeant:'Sergeant at Arms'};
+    const ROLE_NAMES = {tmod:'Toastmaster of the Day',timer:'Timer',wordmaster:'Wordmaster'};
     rtEl.innerHTML = `<table class="data-table">
       <thead><tr><th>Date</th><th>Role</th><th>Meeting</th></tr></thead>
       <tbody>${roles.map(r => `<tr>

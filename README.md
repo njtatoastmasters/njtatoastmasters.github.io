@@ -2,7 +2,7 @@
 
 > *Your on-ramp to confident speaking.*
 
-A lightweight, modern meeting sign-up portal for NJTA Toastmasters. Members log in, claim roles, sign up as speakers, and track their Pathways progress — no more day-of agenda scrambles..
+A lightweight, modern meeting sign-up portal for NJTA Toastmasters. Members log in, claim roles, sign up as speakers, and track their Pathways progress — no more day-of agenda scrambles.
 
 ---
 

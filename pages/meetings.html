@@ -150,13 +150,8 @@ let pendingAction = null;
 
 const ROLES = [
   { id: 'tmod', name: 'Toastmaster of the Day' },
-  { id: 'ge', name: 'General Evaluator' },
-  { id: 'topicsmaster', name: 'Table Topics Master' },
   { id: 'timer', name: 'Timer' },
-  { id: 'ah_counter', name: 'Ah-Counter' },
-  { id: 'grammarian', name: 'Grammarian' },
-  { id: 'ballot_counter', name: 'Ballot Counter' },
-  { id: 'sergeant', name: 'Sergeant at Arms' },
+  { id: 'wordmaster', name: 'Wordmaster' },
 ];
 
 async function init() {
@@ -250,16 +245,22 @@ function renderFullMeeting(m, isPast = false) {
   }).join('');
 
   const maxSpeakers = m.speaker_slots_count || 3;
+  // Only count slots that have a member assigned
+  const filledSlots = speakers.filter(s => s.member_id);
+  const openSlots = speakers.filter(s => !s.member_id);
+
   const speakerSlots = Array.from({ length: maxSpeakers }, (_, i) => {
-    const slot = speakers[i];
-    const isMe = slot && slot.member_id === currentUser.id;
+    const filledSlot = filledSlots[i] || null;
+    const openSlot = openSlots[i] || null;
+    const isMe = filledSlot && filledSlot.member_id === currentUser.id;
+
     if (isPast) {
-      return `<div class="speaker-slot ${slot ? 'filled' : ''}">
+      return `<div class="speaker-slot ${filledSlot ? 'filled' : ''}">
         <div class="speaker-num">${i + 1}</div>
         <div class="speaker-info">
-          ${slot ? `<div class="speaker-name">${slot.members?.full_name || 'Unknown'}</div>
-          <div class="speaker-title">${slot.speech_title || 'Title TBD'}</div>
-          <div class="speaker-project">${[slot.pathway, slot.project_name].filter(Boolean).join(' · ')}</div>` 
+          ${filledSlot ? `<div class="speaker-name">${filledSlot.members?.full_name || 'Unknown'}</div>
+          <div class="speaker-title">${filledSlot.speech_title || 'Title TBD'}</div>
+          <div class="speaker-project">${[filledSlot.pathway, filledSlot.project_name].filter(Boolean).join(' · ')}</div>`
           : '<div class="speaker-name" style="color:var(--text-light)">Open slot</div>'}
         </div>
       </div>`;
@@ -269,29 +270,31 @@ function renderFullMeeting(m, isPast = false) {
         <div class="speaker-num">${i + 1}</div>
         <div class="speaker-info">
           <div class="speaker-name">You</div>
-          <div class="speaker-title">${slot.speech_title || 'Title TBD — click edit to add'}</div>
-          <div class="speaker-project">${[slot.pathway, slot.project_name].filter(Boolean).join(' · ')}</div>
+          <div class="speaker-title">${filledSlot.speech_title || 'Title TBD — click edit to add'}</div>
+          <div class="speaker-project">${[filledSlot.pathway, filledSlot.project_name].filter(Boolean).join(' · ')}</div>
         </div>
         <div style="display:flex;gap:6px;">
-          <button class="btn btn-outline btn-sm" onclick="openEditSpeaker('${m.id}','${slot.id}')">Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="openDropSpeaker('${m.id}','${slot.id}')">Drop</button>
+          <button class="btn btn-outline btn-sm" onclick="openEditSpeaker('${m.id}','${filledSlot.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="openDropSpeaker('${m.id}','${filledSlot.id}')">Drop</button>
         </div>
       </div>`;
     }
-    if (slot) {
+    if (filledSlot) {
       return `<div class="speaker-slot filled">
         <div class="speaker-num">${i + 1}</div>
         <div class="speaker-info">
-          <div class="speaker-name">${slot.members?.full_name || 'Taken'}</div>
-          <div class="speaker-title">${slot.speech_title || 'Title TBD'}</div>
-          <div class="speaker-project">${[slot.pathway, slot.project_name].filter(Boolean).join(' · ')}</div>
+          <div class="speaker-name">${filledSlot.members?.full_name || 'Taken'}</div>
+          <div class="speaker-title">${filledSlot.speech_title || 'Title TBD'}</div>
+          <div class="speaker-project">${[filledSlot.pathway, filledSlot.project_name].filter(Boolean).join(' · ')}</div>
         </div>
       </div>`;
     }
+    // Open slot — use the actual slot id if available so we update the right row
+    const slotId = openSlot ? openSlot.id : null;
     return `<div class="speaker-slot">
       <div class="speaker-num">${i + 1}</div>
       <div class="speaker-info"><div class="speaker-name" style="color:var(--text-muted)">Open speaker slot</div></div>
-      <button class="btn btn-amber btn-sm" onclick="openSpeakerSignup('${m.id}', null)">Sign up</button>
+      <button class="btn btn-amber btn-sm" onclick="openSpeakerSignup('${m.id}', '${slotId}')">Sign up</button>
     </div>`;
   }).join('');
 
@@ -412,9 +415,9 @@ async function confirmDrop() {
 let pendingSpeakerMeeting = null;
 let editingSlotId = null;
 
-function openSpeakerSignup(meetingId) {
+function openSpeakerSignup(meetingId, slotId) {
   pendingSpeakerMeeting = meetingId;
-  editingSlotId = null;
+  editingSlotId = slotId && slotId !== 'null' ? slotId : null;
   ['speech-title', 'speech-pathway', 'speech-project', 'speech-notes'].forEach(id => {
     document.getElementById(id).value = '';
   });
@@ -440,26 +443,28 @@ async function confirmSpeakerSignup() {
   };
 
   let error;
-  if (editingSlotId) {
-    ({ error } = await sb.from('speaker_slots').update(payload).eq('id', editingSlotId));
-  } else {
-    // Find the first open slot for this meeting
+  let targetSlotId = editingSlotId;
+
+  if (!targetSlotId) {
+    // Fallback: find first open slot for this meeting
     const { data: openSlot } = await sb.from('speaker_slots')
       .select('id').eq('meeting_id', pendingSpeakerMeeting).is('member_id', null).limit(1).single();
     if (!openSlot) { showToast('No open speaker slots found.', 'error'); btn.textContent = 'Sign me up'; btn.disabled = false; return; }
-    ({ error } = await sb.from('speaker_slots').update(payload).eq('id', openSlot.id));
+    targetSlotId = openSlot.id;
+  }
 
-    // Also log to speeches history
-    if (!error) {
-      await sb.from('speeches').insert({
-        member_id: currentUser.id,
-        meeting_id: pendingSpeakerMeeting,
-        speech_title: payload.speech_title,
-        pathway: payload.pathway,
-        project_name: payload.project_name,
-        speaker_slot_id: openSlot.id,
-      });
-    }
+  ({ error } = await sb.from('speaker_slots').update(payload).eq('id', targetSlotId));
+
+  // Log to speeches history on new signup (not edit)
+  if (!error && !editingSlotId) {
+    await sb.from('speeches').insert({
+      member_id: currentUser.id,
+      meeting_id: pendingSpeakerMeeting,
+      speech_title: payload.speech_title,
+      pathway: payload.pathway,
+      project_name: payload.project_name,
+      speaker_slot_id: targetSlotId,
+    });
   }
 
   btn.textContent = 'Sign me up'; btn.disabled = false;

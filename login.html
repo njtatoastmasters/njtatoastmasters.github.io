@@ -102,7 +102,7 @@
     const { error } = await sb.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: 'https://njtatoastmasters.github.io/pages/dashboard.html'
+        emailRedirectTo: window.location.origin + '/pages/dashboard.html'
       }
     });
 
