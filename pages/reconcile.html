@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reconcile Meeting — OnRamp</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .reconcile-section { margin-bottom: 2rem; }
+    .reconcile-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      gap: 1rem;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--asphalt-dark);
+    }
+    .reconcile-row:last-child { border-bottom: none; }
+    .reconcile-name { font-weight: 600; font-size: 0.9rem; }
+    .reconcile-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 1px; }
+    .confirm-btn {
+      padding: 5px 14px;
+      border-radius: var(--radius);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .confirm-btn.yes { background: var(--green-light); color: var(--green-dark); border-color: var(--green); }
+    .confirm-btn.yes.active { background: var(--green); color: white; }
+    .confirm-btn.no { background: var(--danger-light); color: var(--danger); border-color: var(--danger); margin-left: 4px; }
+    .confirm-btn.no.active { background: var(--danger); color: white; }
+    .confirm-btn:hover { opacity: 0.85; }
+    .guest-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 8px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
+    .pending-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #FEF3DC;
+      color: var(--amber-dark);
+      border-radius: 99px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="dashboard.html" class="nav-brand">
+    <div class="nav-logo">
+      <svg viewBox="0 0 18 18" fill="none">
+        <rect x="6" y="1" width="6" height="10" rx="3" fill="#004D2B"/>
+        <path d="M2 8a7 7 0 0 0 14 0" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="9" y1="15" x2="9" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="5" y1="17" x2="13" y2="17" stroke="#004D2B" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="nav-title">OnRamp</div>
+      <div class="nav-subtitle">NJTA Toastmasters</div>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="dashboard.html">Dashboard</a></li>
+    <li><a href="meetings.html">Meetings</a></li>
+    <li><a href="my-speeches.html">My Speeches</a></li>
+    <li><a href="members.html">Members</a></li>
+    <li><a href="admin.html" id="nav-admin" style="display:none">Admin</a></li>
+  </ul>
+  <div class="nav-user">
+    <span id="nav-user-name"></span>
+    <div class="nav-avatar" id="nav-avatar"></div>
+    <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 id="page-title">Reconcile Meeting</h1>
+      <p id="page-sub" style="color:var(--text-muted);"></p>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="meetings.html" class="btn btn-ghost btn-sm">← Back to meetings</a>
+      <button class="btn btn-primary btn-sm" onclick="saveAll()">Save reconciliation</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info" style="margin-bottom:1.5rem;">
+    Mark each role holder and speaker as <strong>Attended ✓</strong> or <strong>No-show ✗</strong>.
+    Attendance counts toward reimbursement eligibility. Unconfirmed entries show as pending in member history.
+  </div>
+
+  <!-- Attendance -->
+  <div class="card reconcile-section">
+    <div class="card-header">
+      <span class="card-title">Attendance</span>
+      <span class="pending-badge" id="attendance-pending">⏳ Pending</span>
+    </div>
+    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;">
+      Mark everyone who was present — including members not in a role or speaker slot. Add guest names below.
+    </p>
+    <div id="attendance-list"></div>
+
+    <hr class="road-line">
+    <div style="margin-top:1rem;">
+      <div style="font-size:0.78rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.75rem;">Add guests</div>
+      <div id="guest-rows"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addGuestRow()" style="margin-top:6px;">+ Add guest</button>
+    </div>
+  </div>
+
+  <!-- Roles -->
+  <div class="card reconcile-section">
+    <div class="card-header">
+      <span class="card-title">Meeting roles</span>
+      <span class="pending-badge" id="roles-pending">⏳ Pending</span>
+    </div>
+    <div id="roles-list"><p style="color:var(--text-muted);font-size:0.875rem;">No roles signed up.</p></div>
+  </div>
+
+  <!-- Speakers -->
+  <div class="card reconcile-section">
+    <div class="card-header">
+      <span class="card-title">Prepared speakers</span>
+      <span class="pending-badge" id="speakers-pending">⏳ Pending</span>
+    </div>
+    <div id="speakers-list"><p style="color:var(--text-muted);font-size:0.875rem;">No speakers signed up.</p></div>
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
+    <button class="btn btn-primary" onclick="saveAll()">Save reconciliation</button>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+const SUPABASE_URL = 'https://sxkmvlpzpkoiyvaowdyn.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_xget8F5pAkCg0LyWsfUf-A_QhgcZWk-';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const ROLE_NAMES = { tmod: 'Toastmaster of the Day', timer: 'Timer', wordmaster: 'Wordmaster' };
+const ALLOWED_ROLES = ['admin', 'vpe', 'secretary', 'officer'];
+
+let currentUser = null;
+let meeting = null;
+let allMembers = [];
+// State maps: id -> true/false/null
+let attendanceMap = {};   // member_id -> bool
+let guestRows = [];       // [{name, email}]
+let roleConfirmMap = {};  // meeting_role.id -> bool
+let speakerConfirmMap = {}; // speaker_slot.id -> bool
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../index.html'; return; }
+  currentUser = session.user;
+
+  const { data: profile } = await sb.from('members').select('*').eq('id', currentUser.id).single();
+  if (!profile || !ALLOWED_ROLES.includes(profile.role)) {
+    alert('You do not have permission to reconcile meetings.');
+    window.location.href = 'dashboard.html'; return;
+  }
+
+  document.getElementById('nav-user-name').textContent = profile.full_name.split(' ')[0];
+  document.getElementById('nav-avatar').textContent = profile.full_name.split(' ').map(n=>n[0]).join('').slice(0,2);
+  if (profile.role === 'admin') document.getElementById('nav-admin').style.display = '';
+
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) { alert('No meeting specified.'); return; }
+
+  // Load meeting + members
+  const [{ data: m }, { data: members }, { data: attendance }] = await Promise.all([
+    sb.from('meetings').select(`*, meeting_roles(*, members(full_name)), speaker_slots(*, members(full_name))`).eq('id', id).single(),
+    sb.from('members').select('id, full_name, email').order('full_name'),
+    sb.from('meeting_attendance').select('*').eq('meeting_id', id),
+  ]);
+
+  meeting = m;
+  allMembers = members || [];
+
+  document.getElementById('page-title').textContent = `Reconcile — ${m.title || 'Regular Meeting'}`;
+  document.getElementById('page-sub').textContent = formatDate(m.meeting_date) + ' · ' + formatTime(m.meeting_time);
+
+  // Seed attendance from existing records
+  (attendance || []).forEach(a => {
+    if (a.member_id) attendanceMap[a.member_id] = a.attended;
+  });
+
+  // Seed role/speaker confirmations
+  (m.meeting_roles || []).forEach(r => { roleConfirmMap[r.id] = r.confirmed; });
+  (m.speaker_slots || []).filter(s => s.member_id).forEach(s => { speakerConfirmMap[s.id] = s.confirmed; });
+
+  renderAttendance();
+  renderRoles();
+  renderSpeakers();
+  addGuestRow(); // start with one empty guest row
+}
+
+// ── Attendance ────────────────────────────────────────────────────
+
+function renderAttendance() {
+  const el = document.getElementById('attendance-list');
+  el.innerHTML = allMembers.map(m => {
+    const val = attendanceMap[m.id];
+    return `<div class="reconcile-row" id="att-${m.id}">
+      <div>
+        <div class="reconcile-name">${m.full_name}</div>
+        <div class="reconcile-sub">${m.email || ''}</div>
+      </div>
+      <div>
+        <button class="confirm-btn yes ${val === true ? 'active' : ''}" onclick="setAttendance('${m.id}', true)">✓ Attended</button>
+        <button class="confirm-btn no ${val === false ? 'active' : ''}" onclick="setAttendance('${m.id}', false)">✗ No-show</button>
+      </div>
+    </div>`;
+  }).join('');
+  updatePendingBadge('attendance-pending', Object.values(attendanceMap).filter(v => v !== null && v !== undefined).length, allMembers.length);
+}
+
+function setAttendance(memberId, val) {
+  attendanceMap[memberId] = attendanceMap[memberId] === val ? null : val;
+  renderAttendance();
+}
+
+function addGuestRow() {
+  const container = document.getElementById('guest-rows');
+  const idx = guestRows.length;
+  guestRows.push({ name: '', email: '' });
+  const row = document.createElement('div');
+  row.className = 'guest-row';
+  row.id = `guest-${idx}`;
+  row.innerHTML = `
+    <input type="text" placeholder="Guest name" oninput="guestRows[${idx}].name=this.value" style="margin:0;">
+    <input type="email" placeholder="Guest email (optional)" oninput="guestRows[${idx}].email=this.value" style="margin:0;">
+    <button class="btn btn-danger btn-sm" onclick="removeGuestRow(${idx})">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function removeGuestRow(idx) {
+  guestRows[idx] = null;
+  document.getElementById(`guest-${idx}`).remove();
+}
+
+// ── Roles ─────────────────────────────────────────────────────────
+
+function renderRoles() {
+  const roles = (meeting.meeting_roles || []);
+  const el = document.getElementById('roles-list');
+  if (!roles.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:0.875rem;">No roles signed up.</p>'; return; }
+  el.innerHTML = roles.map(r => {
+    const val = roleConfirmMap[r.id];
+    return `<div class="reconcile-row">
+      <div>
+        <div class="reconcile-name">${ROLE_NAMES[r.role_id] || r.role_id}</div>
+        <div class="reconcile-sub">${r.members?.full_name || 'Unknown'}</div>
+      </div>
+      <div>
+        <button class="confirm-btn yes ${val === true ? 'active' : ''}" onclick="setRole('${r.id}', true)">✓ Served</button>
+        <button class="confirm-btn no ${val === false ? 'active' : ''}" onclick="setRole('${r.id}', false)">✗ No-show</button>
+      </div>
+    </div>`;
+  }).join('');
+  updatePendingBadge('roles-pending', Object.values(roleConfirmMap).filter(v => v !== null && v !== undefined).length, roles.length);
+}
+
+function setRole(id, val) {
+  roleConfirmMap[id] = roleConfirmMap[id] === val ? null : val;
+  renderRoles();
+}
+
+// ── Speakers ──────────────────────────────────────────────────────
+
+function renderSpeakers() {
+  const speakers = (meeting.speaker_slots || []).filter(s => s.member_id);
+  const el = document.getElementById('speakers-list');
+  if (!speakers.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:0.875rem;">No speakers signed up.</p>'; return; }
+  el.innerHTML = speakers.map(s => {
+    const val = speakerConfirmMap[s.id];
+    return `<div class="reconcile-row">
+      <div>
+        <div class="reconcile-name">${s.members?.full_name || 'Unknown'}</div>
+        <div class="reconcile-sub">${s.speech_title || 'Title TBD'} ${s.pathway ? '· ' + s.pathway : ''}</div>
+      </div>
+      <div>
+        <button class="confirm-btn yes ${val === true ? 'active' : ''}" onclick="setSpeaker('${s.id}', true)">✓ Delivered</button>
+        <button class="confirm-btn no ${val === false ? 'active' : ''}" onclick="setSpeaker('${s.id}', false)">✗ Did not speak</button>
+      </div>
+    </div>`;
+  }).join('');
+  updatePendingBadge('speakers-pending', Object.values(speakerConfirmMap).filter(v => v !== null && v !== undefined).length, speakers.length);
+}
+
+function setSpeaker(id, val) {
+  speakerConfirmMap[id] = speakerConfirmMap[id] === val ? null : val;
+  renderSpeakers();
+}
+
+// ── Save all ──────────────────────────────────────────────────────
+
+async function saveAll() {
+  const btn = document.querySelector('button[onclick="saveAll()"]');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  const ops = [];
+
+  // Attendance — upsert all members
+  for (const [memberId, attended] of Object.entries(attendanceMap)) {
+    if (attended === null || attended === undefined) continue;
+    ops.push(sb.from('meeting_attendance').upsert({
+      meeting_id: meeting.id,
+      member_id: memberId,
+      attended,
+    }, { onConflict: 'meeting_id,member_id' }));
+  }
+
+  // Guest attendance
+  for (const guest of guestRows) {
+    if (!guest || !guest.name.trim()) continue;
+    ops.push(sb.from('meeting_attendance').insert({
+      meeting_id: meeting.id,
+      guest_name: guest.name.trim(),
+      guest_email: guest.email.trim() || null,
+      attended: true,
+    }));
+  }
+
+  // Role confirmations
+  for (const [roleId, confirmed] of Object.entries(roleConfirmMap)) {
+    if (confirmed === null || confirmed === undefined) continue;
+    ops.push(sb.from('meeting_roles').update({ confirmed }).eq('id', roleId));
+  }
+
+  // Speaker confirmations
+  for (const [slotId, confirmed] of Object.entries(speakerConfirmMap)) {
+    if (confirmed === null || confirmed === undefined) continue;
+    ops.push(sb.from('speaker_slots').update({ confirmed }).eq('id', slotId));
+
+    // If confirmed, make sure speech record exists
+    if (confirmed) {
+      const slot = (meeting.speaker_slots || []).find(s => s.id === slotId);
+      if (slot?.member_id) {
+        ops.push(sb.from('speeches').upsert({
+          member_id: slot.member_id,
+          meeting_id: meeting.id,
+          speaker_slot_id: slotId,
+          speech_title: slot.speech_title,
+          pathway: slot.pathway,
+          project_name: slot.project_name,
+          delivered_at: meeting.meeting_date,
+        }, { onConflict: 'speaker_slot_id' }));
+      }
+    }
+  }
+
+  const results = await Promise.all(ops);
+  const errors = results.filter(r => r.error).map(r => r.error.message);
+
+  btn.textContent = 'Save reconciliation'; btn.disabled = false;
+
+  if (errors.length) {
+    showToast('Some errors: ' + errors[0], 'error');
+  } else {
+    showToast('Reconciliation saved!', 'success');
+    setTimeout(() => window.location.href = `agenda.html?id=${meeting.id}`, 1200);
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+
+function updatePendingBadge(id, confirmed, total) {
+  const el = document.getElementById(id);
+  if (confirmed >= total && total > 0) {
+    el.innerHTML = '✓ Complete';
+    el.style.background = 'var(--green-light)';
+    el.style.color = 'var(--green-dark)';
+  } else {
+    el.innerHTML = `⏳ ${confirmed}/${total} confirmed`;
+  }
+}
+
+function formatDate(d) {
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':');
+  const hr = parseInt(h); return `${hr % 12 || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+}
+
+function showToast(msg, type = '') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`; t.textContent = msg; c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+function signOut() { sb.auth.signOut().then(() => window.location.href = '../index.html'); }
+
+init();
+</script>
+</body>
+</html>

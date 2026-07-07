@@ -200,15 +200,23 @@ async function loadAll() {
   } else {
     stEl.innerHTML = `<table class="data-table">
       <thead><tr>
-        <th>Date</th><th>Title</th><th>Path</th><th>Project</th><th></th>
+        <th>Date</th><th>Title</th><th>Path</th><th>Project</th><th>Status</th><th></th>
       </tr></thead>
-      <tbody>${speeches.map(s => `<tr>
-        <td style="white-space:nowrap;color:var(--text-muted)">${s.delivered_at ? formatDate(s.delivered_at) : formatMeetingDate(s.meetings?.meeting_date)}</td>
-        <td><strong>${s.speech_title || '—'}</strong></td>
-        <td><span class="badge badge-green">${s.pathway || '—'}</span></td>
-        <td style="color:var(--text-muted)">${s.project_name || '—'}</td>
-        <td><button class="btn btn-ghost btn-sm" onclick="editSpeech(${JSON.stringify(s).replace(/"/g,'&quot;')})">Edit</button></td>
-      </tr>`).join('')}</tbody>
+      <tbody>${speeches.map(s => {
+        const confirmed = s.speaker_slot_id ? s.confirmed : null;
+        const statusBadge = confirmed === true ? '<span class="badge badge-green">Confirmed</span>'
+          : confirmed === false ? '<span class="badge badge-red">No-show</span>'
+          : s.speaker_slot_id ? '<span class="badge badge-amber">Pending</span>'
+          : '<span class="badge badge-gray">Manual</span>';
+        return `<tr>
+          <td style="white-space:nowrap;color:var(--text-muted)">${s.delivered_at ? formatDate(s.delivered_at) : formatMeetingDate(s.meetings?.meeting_date)}</td>
+          <td><strong>${s.speech_title || '—'}</strong></td>
+          <td><span class="badge badge-green">${s.pathway || '—'}</span></td>
+          <td style="color:var(--text-muted)">${s.project_name || '—'}</td>
+          <td>${statusBadge}</td>
+          <td><button class="btn btn-ghost btn-sm" onclick="editSpeech(${JSON.stringify(s).replace(/"/g,'&quot;')})">Edit</button></td>
+        </tr>`;
+      }).join('')}</tbody>
     </table>`;
   }
 

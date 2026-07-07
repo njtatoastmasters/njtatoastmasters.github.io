@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NJTA Toastmasters — OnRamp</title>
   <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     /* ── Landing-page-specific styles ── */
 
@@ -775,16 +776,33 @@
     </div>
   </div>
 
-  <div class="alert alert-success" style="max-width:600px;margin-bottom:2rem;">
-    <span>
-      <strong>NJTA reimburses 100% of your dues.</strong> Attend at least 3 meetings and complete
-      at least 1 Pathways project within a 6-month eligibility period, and you can submit your
-      membership fees for reimbursement through your supervisor — same as any other expense.
-      Eligibility periods run April 1 – September 30 and October 1 – March 31.
-      <em style="color:inherit;opacity:0.8;display:block;margin-top:6px;font-size:0.82rem;">
-        Contact a club officer for the reimbursement form and current process.
-      </em>
-    </span>
+  <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:var(--radius-lg);padding:1.5rem 1.75rem;max-width:600px;margin-bottom:2rem;">
+    <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--green);margin-bottom:0.5rem;">NJTA Reimbursement Program</div>
+    <p style="font-size:0.9rem;color:var(--green-dark);margin-bottom:1rem;">
+      <strong>NJTA reimburses 100% of your dues</strong> — approved by NJTA leadership effective 2024 and going forward.
+      To qualify, within a 6-month eligibility period you must attend at least 3 meetings and complete at least 1 Pathways project.
+      Periods run <strong>April 1 – September 30</strong> and <strong>October 1 – March 31</strong>.
+    </p>
+    <p style="font-size:0.875rem;color:var(--green-dark);margin-bottom:1rem;">
+      Submit the following to your supervisor as you would any reimbursement request:
+    </p>
+    <ol style="padding-left:1.25rem;font-size:0.875rem;color:var(--green-dark);line-height:2;margin-bottom:1.25rem;">
+      <li>Cover letter <em style="opacity:0.7;">(revise template as necessary)</em></li>
+      <li>NJTA Employee Reimbursement Form</li>
+      <li>NJTA Toastmasters Reimbursement Policy</li>
+      <li>List of members eligible for reimbursement <em style="opacity:0.7;">(shared by club officers after each 6-month period)</em></li>
+    </ol>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      <a href="assets/NJTA_Toastmasters_Dues_Reimbursement_Cover_Letter.docx" download class="btn btn-primary btn-sm">
+        📄 Cover letter template
+      </a>
+      <a href="assets/NJTA_Employee_Reimbursement_Form.pdf" target="_blank" class="btn btn-primary btn-sm">
+        📄 Reimbursement form
+      </a>
+      <a href="assets/NJTA_Toastmasters_Reimbursement_Policy.pdf" target="_blank" class="btn btn-outline btn-sm" style="border-color:var(--green);color:var(--green-dark);">
+        📋 NJTA reimbursement policy
+      </a>
+    </div>
   </div>
 
   <div style="background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:1.75rem;max-width:600px;">
@@ -802,15 +820,51 @@
       </a>
     </div>
     <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--asphalt-dark);">
-      <div style="font-size:0.78rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">Contact</div>
-      <div style="font-size:0.9rem;">
-        <strong>[Club President Name]</strong><br>
-        <a href="mailto:president@example.njta.gov" style="color:var(--green);">president@njta.gov</a><br>
-        <em style="color:var(--text-light);font-size:0.82rem;">Replace with actual contact info.</em>
-      </div>
+      <div style="font-size:0.78rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.75rem;">Club contacts</div>
+      <div id="officer-contacts" style="font-size:0.875rem;color:var(--text-muted);">Loading…</div>
     </div>
   </div>
 </section>
+
+<script>
+// Load officer contacts dynamically from Supabase
+(async () => {
+  const SUPABASE_URL = 'https://sxkmvlpzpkoiyvaowdyn.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_xget8F5pAkCg0LyWsfUf-A_QhgcZWk-';
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const LABELS = { Pres: 'President', VPE: 'VP Education', VPM: 'VP Membership', VPPR: 'VP Public Relations', Sec: 'Secretary', Trea: 'Treasurer', SAA: 'Sergeant at Arms' };
+  const CONTACT_TITLES = ['Pres', 'VPM']; // show these on the public page
+
+  const { data } = await sb.from('officer_roles')
+    .select('role_title, members(full_name, email)')
+    .in('role_title', CONTACT_TITLES);
+
+  const el = document.getElementById('officer-contacts');
+  if (!data || data.length === 0) {
+    el.innerHTML = '<em>Contact information coming soon.</em>';
+    return;
+  }
+
+  // Deduplicate by member (one person may hold multiple roles)
+  const seen = new Set();
+  const rows = [];
+  data.forEach(o => {
+    const key = o.members?.full_name;
+    const roles = data.filter(x => x.members?.full_name === key).map(x => LABELS[x.role_title]).join(', ');
+    if (!seen.has(key)) {
+      seen.add(key);
+      rows.push(`<div style="margin-bottom:0.75rem;">
+        <strong>${o.members?.full_name || '—'}</strong>
+        <span style="color:var(--text-light);font-size:0.78rem;margin-left:6px;">${roles}</span><br>
+        ${o.members?.email ? `<a href="mailto:${o.members.email}" style="color:var(--green);">${o.members.email}</a>` : ''}
+      </div>`);
+    }
+  });
+  el.innerHTML = rows.join('');
+})();
+</script>
 
 
 <!-- ── FAQ ── -->

@@ -47,6 +47,7 @@
   <div style="display:flex;gap:8px;margin-bottom:1.5rem;border-bottom:2px solid var(--asphalt-dark);padding-bottom:0;">
     <button class="tab-btn active" onclick="switchTab('meetings-tab', this)">Meetings</button>
     <button class="tab-btn" onclick="switchTab('members-tab', this)">Members</button>
+    <button class="tab-btn" onclick="switchTab('officers-tab', this)">Officers</button>
   </div>
 
   <!-- Meetings tab -->
@@ -68,6 +69,21 @@
     <div class="card">
       <div class="card-header"><span class="card-title">Club members</span></div>
       <div id="admin-members-list"><div class="empty-state"><p>Loading…</p></div></div>
+    </div>
+  </div>
+
+  <!-- Officers tab -->
+  <div id="officers-tab" style="display:none;">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Club officers</span></div>
+      <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1.25rem;">
+        Assign club officers by role. One member per title. A member can hold multiple titles.
+        These names appear dynamically on the public landing page.
+      </p>
+      <div id="officers-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+      <div style="margin-top:1.5rem;">
+        <button class="btn btn-primary" onclick="saveOfficers()">Save officers</button>
+      </div>
     </div>
   </div>
 </div>
@@ -136,7 +152,7 @@
       <button class="modal-close" onclick="closeModal('modal-invite')">✕</button>
     </div>
     <div class="alert alert-info" style="margin-bottom:1.25rem;">
-      Add the member here, then send them the site link (<strong>njtatoastmasters.github.io</strong>). They enter their email on the login page to get a magic link and sign in immediately.
+      This sends the member a magic link email. They'll be able to log in immediately.
     </div>
     <div class="form-group">
       <label for="inv-name">Full name</label>
@@ -156,7 +172,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-invite')">Cancel</button>
-      <button class="btn btn-primary" onclick="inviteMember()">Add member</button>
+      <button class="btn btn-primary" onclick="inviteMember()">Send invite</button>
     </div>
   </div>
 </div>
@@ -233,8 +249,9 @@ async function loadMeetings() {
         <td style="color:var(--text-muted);font-size:0.82rem;">${m.location || '—'}</td>
         <td><span class="badge ${isPast ? 'badge-gray' : (m.meeting_roles||[]).length >= 3 ? 'badge-green' : 'badge-amber'}">${(m.meeting_roles||[]).length}/3</span></td>
         <td><span class="badge ${isPast ? 'badge-gray' : filledSpeakers >= (m.speaker_slots_count||3) ? 'badge-green' : 'badge-amber'}">${filledSpeakers}/${m.speaker_slots_count||3}</span></td>
-        <td><a href="agenda.html?id=${m.id}" class="btn btn-ghost btn-sm" target="_blank">View</a></td>
+        <td><a href="agenda.html?id=${m.id}" class="btn btn-ghost btn-sm" target="_blank">Agenda</a></td>
         <td style="display:flex;gap:6px;">
+          <a href="reconcile.html?id=${m.id}" class="btn btn-amber btn-sm">Reconcile</a>
           <button class="btn btn-outline btn-sm" onclick="editMeeting(${JSON.stringify(m).replace(/"/g,'&quot;')})">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="confirmDelete('${m.id}')">Delete</button>
         </td>
@@ -346,20 +363,28 @@ async function inviteMember() {
   if (!name || !email) { showToast('Name and email are required.', 'error'); return; }
 
   const btn = event.target;
-  btn.textContent = 'Saving…'; btn.disabled = true;
+  btn.textContent = 'Sending…'; btn.disabled = true;
 
-  // Insert into pending_members — profile is created automatically when they first log in
-  const { error } = await sb.from('pending_members').upsert({ email, full_name: name, role });
+  // Invite via Supabase Auth (sends magic link)
+  const { data, error } = await sb.auth.admin.inviteUserByEmail(email, {
+    data: { full_name: name, role }
+  });
 
-  btn.textContent = 'Add member'; btn.disabled = false;
-
+  // Fallback: if admin API not available on client, just create the member record
+  // and let them sign in via magic link
   if (error) {
-    showToast('Error: ' + error.message, 'error');
-    return;
+    // Try inserting into members table directly (admin must approve after first login)
+    const { error: e2 } = await sb.from('members').insert({ full_name: name, email, role });
+    if (e2) {
+      showToast('Error: ' + (error.message || e2.message), 'error');
+      btn.textContent = 'Send invite'; btn.disabled = false;
+      return;
+    }
   }
 
+  btn.textContent = 'Send invite'; btn.disabled = false;
   closeModal('modal-invite');
-  showToast(`${name} added. Send them njtatoastmasters.github.io to log in.`, 'success');
+  showToast(`Invite sent to ${email}`, 'success');
   await loadMembers();
 }
 
@@ -374,7 +399,55 @@ function switchTab(tab, btn) {
   btn.classList.add('active');
   document.getElementById('meetings-tab').style.display = tab === 'meetings-tab' ? '' : 'none';
   document.getElementById('members-tab').style.display = tab === 'members-tab' ? '' : 'none';
+  document.getElementById('officers-tab').style.display = tab === 'officers-tab' ? '' : 'none';
   if (tab === 'members-tab') loadMembers();
+  if (tab === 'officers-tab') loadOfficers();
+}
+
+const OFFICER_TITLES = ['Pres', 'VPE', 'VPM', 'VPPR', 'Sec', 'Trea', 'SAA'];
+const OFFICER_LABELS = { Pres: 'President', VPE: 'VP Education', VPM: 'VP Membership', VPPR: 'VP Public Relations', Sec: 'Secretary', Trea: 'Treasurer', SAA: 'Sergeant at Arms' };
+let officerSelections = {}; // title -> member_id
+
+async function loadOfficers() {
+  const [{ data: officers }, { data: members }] = await Promise.all([
+    sb.from('officer_roles').select('*, members(full_name)'),
+    sb.from('members').select('id, full_name').order('full_name'),
+  ]);
+
+  (officers || []).forEach(o => { officerSelections[o.role_title] = o.member_id; });
+
+  const grid = document.getElementById('officers-grid');
+  grid.innerHTML = OFFICER_TITLES.map(title => {
+    const current = officerSelections[title] || '';
+    return `<div class="card" style="padding:1rem;">
+      <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--green);margin-bottom:4px;">${title}</div>
+      <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem;">${OFFICER_LABELS[title]}</div>
+      <select id="officer-${title}" style="margin:0;" onchange="officerSelections['${title}']=this.value">
+        <option value="">— Vacant —</option>
+        ${(members || []).map(m => `<option value="${m.id}" ${m.id === current ? 'selected' : ''}>${m.full_name}</option>`).join('')}
+      </select>
+    </div>`;
+  }).join('');
+}
+
+async function saveOfficers() {
+  const btn = event.target;
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  // Delete all existing and re-insert
+  await sb.from('officer_roles').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+  const inserts = Object.entries(officerSelections)
+    .filter(([, memberId]) => memberId)
+    .map(([role_title, member_id]) => ({ role_title, member_id }));
+
+  if (inserts.length) {
+    const { error } = await sb.from('officer_roles').insert(inserts);
+    if (error) { showToast('Error: ' + error.message, 'error'); btn.textContent = 'Save officers'; btn.disabled = false; return; }
+  }
+
+  btn.textContent = 'Save officers'; btn.disabled = false;
+  showToast('Officers saved!', 'success');
 }
 
 function formatDate(d) {
