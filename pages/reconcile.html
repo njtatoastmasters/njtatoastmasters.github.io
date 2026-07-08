@@ -155,7 +155,7 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ROLE_NAMES = { tmod: 'Toastmaster of the Day', timer: 'Timer', wordmaster: 'Wordmaster' };
-const ALLOWED_ROLES = ['admin', 'vpe', 'secretary', 'officer'];
+const ALLOWED_ROLES = ['admin', 'officer'];
 
 let currentUser = null;
 let meeting = null;
