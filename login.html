@@ -3,9 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://sxkmvlpzpkoiyvaowdyn.supabase.co; frame-src https://challenges.cloudflare.com;">
+  <meta name="referrer" content="same-origin">
   <title>Member Login — OnRamp NJTA Toastmasters</title>
   <link rel="stylesheet" href="css/style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.7/dist/umd/supabase.js" integrity="sha384-hazsLVND17GNLVdtV19te6qbFT2YuLgl8SamcF+QR5eIOC+W4dGKrUNMxU1jH1zD" crossorigin="anonymous"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
 
@@ -14,7 +17,6 @@
 
     <div class="login-brand">
       <div class="login-logo">
-        <!-- Microphone icon -->
         <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="10" y="2" width="8" height="14" rx="4" fill="#004D2B"/>
           <path d="M5 13a9 9 0 0 0 18 0" stroke="#004D2B" stroke-width="2" stroke-linecap="round"/>
@@ -37,8 +39,12 @@
         <label for="email">Email address</label>
         <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
       </div>
+
+      <!-- Cloudflare Turnstile CAPTCHA -->
+      <div class="cf-turnstile" data-sitekey="0x4AAAAAAD7llJYK14HnBety" data-theme="light" style="margin-bottom:1rem;display:flex;justify-content:center;"></div>
+
       <div id="login-alert" style="display:none;"></div>
-      <button class="btn btn-primary btn-full btn-lg" onclick="sendMagicLink()">
+      <button class="btn btn-primary btn-full btn-lg" id="send-link-btn">
         Send sign-in link
       </button>
     </div>
@@ -48,12 +54,30 @@
       <div style="font-size:2.5rem;margin-bottom:0.75rem;">✉️</div>
       <h3 style="font-family:'Oswald',sans-serif;font-size:1.2rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--green-dark);margin-bottom:0.5rem;">Check your inbox</h3>
       <p style="font-size:0.875rem;color:var(--text-muted);">
-        We sent a sign-in link to <strong id="sent-email"></strong>.<br>
+        If <strong id="sent-email"></strong> is registered with the club, a sign-in link is on its way.<br>
         Click the link in the email to log in. It expires in 1 hour.
       </p>
-      <button class="btn btn-ghost btn-full" style="margin-top:1.25rem;" onclick="resetForm()">
+      <p style="font-size:0.75rem;color:var(--text-light);margin-top:10px;">
+        The email comes from <strong>NJTA Toastmasters OnRamp</strong>. Verify the link points to
+        <strong>njtatoastmasters.github.io</strong> before clicking — and if anything looks off, delete it and ask a club officer.
+      </p>
+      <button class="btn btn-ghost btn-full" style="margin-top:1.25rem;" id="reset-form-btn">
         Try a different email
       </button>
+    </div>
+
+    <div class="login-divider"></div>
+
+    <!-- Security assurances -->
+    <div style="background:var(--asphalt);border-radius:var(--radius);padding:12px 14px;margin-bottom:4px;">
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--green-dark);margin-bottom:8px;">🔒 How sign-in stays secure</div>
+      <ul style="list-style:none;font-size:0.75rem;color:var(--text-muted);line-height:1.7;">
+        <li>✓ Only pre-approved club members can sign in</li>
+        <li>✓ No passwords — nothing to steal or reuse</li>
+        <li>✓ Sign-in links are single-use and expire in 1 hour</li>
+        <li>✓ Legitimate links only ever go to <strong>njtatoastmasters.github.io</strong></li>
+        <li>✓ This site never asks for NJTA network credentials and has no connection to NJTA systems</li>
+      </ul>
     </div>
 
     <div class="login-divider"></div>
@@ -67,72 +91,6 @@
   </div>
 </div>
 
-<script>
-  const { createClient } = supabase;
-  const SUPABASE_URL = 'https://sxkmvlpzpkoiyvaowdyn.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_xget8F5pAkCg0LyWsfUf-A_QhgcZWk-';
-  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  // If already logged in, go to dashboard
-  sb.auth.getSession().then(({ data }) => {
-    if (data.session) window.location.href = 'pages/dashboard.html';
-  });
-
-  // Handle auth callback (when user clicks magic link)
-  sb.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-      window.location.href = 'pages/dashboard.html';
-    }
-  });
-
-
-  async function sendMagicLink() {
-    const email = document.getElementById('email').value.trim();
-    const alertEl = document.getElementById('login-alert');
-
-    if (!email) {
-      showAlert('Please enter your email address.', 'danger');
-      return;
-    }
-
-    const btn = event.target;
-    btn.textContent = 'Sending…';
-    btn.disabled = true;
-
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: window.location.origin + '/pages/dashboard.html'
-      }
-    });
-
-    if (error) {
-      showAlert(error.message, 'danger');
-      btn.textContent = 'Send sign-in link';
-      btn.disabled = false;
-    } else {
-      document.getElementById('form-request').style.display = 'none';
-      document.getElementById('sent-email').textContent = email;
-      document.getElementById('form-sent').style.display = 'block';
-    }
-  }
-
-  function showAlert(msg, type) {
-    const el = document.getElementById('login-alert');
-    el.className = `alert alert-${type}`;
-    el.textContent = msg;
-    el.style.display = 'flex';
-  }
-
-  function resetForm() {
-    document.getElementById('form-request').style.display = 'block';
-    document.getElementById('form-sent').style.display = 'none';
-    document.getElementById('email').value = '';
-  }
-
-  document.getElementById('email').addEventListener('keydown', e => {
-    if (e.key === 'Enter') sendMagicLink();
-  });
-</script>
+<script src="js/login.js"></script>
 </body>
 </html>
