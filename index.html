@@ -74,10 +74,10 @@
     .topbar-nav a:hover { background: rgba(255,255,255,0.12); color: var(--white); }
 
     /* Hero */
-    .hero {
+.hero {
       background: var(--green-dark);
       color: var(--white);
-      padding: 5rem 2rem 4rem;
+      padding: 2.5rem 2rem 2rem;     /* was 5rem 2rem 4rem */
       text-align: center;
       position: relative;
       overflow: hidden;
@@ -106,24 +106,24 @@
       margin-bottom: 1rem;
     }
 
-    .hero h1 {
+.hero h1 {
       font-family: 'Oswald', sans-serif;
-      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-size: clamp(1.7rem, 3.6vw, 2.4rem);   /* was clamp(2.2rem, 5vw, 3.4rem) */
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.04em;
       color: var(--white);
       line-height: 1.1;
       max-width: 700px;
-      margin: 0 auto 1.25rem;
+      margin: 0 auto 0.9rem;          /* was 1.25rem */
     }
 
-    .hero-sub {
-      font-size: 1.05rem;
+.hero-sub {
+      font-size: 0.95rem;             /* was 1.05rem */
       color: rgba(255,255,255,0.75);
       max-width: 520px;
-      margin: 0 auto 2.25rem;
-      line-height: 1.7;
+      margin: 0 auto 1.4rem;          /* was 2.25rem */
+      line-height: 1.6;
     }
 
     .hero-actions {
@@ -469,6 +469,37 @@
       .topbar-nav { display: none; }
       .hero { padding: 3rem 1.25rem 2.5rem; }
     }
+    /* Sticky next-meeting banner */
+    .next-meeting-bar {
+      position: sticky;
+      top: 56px;                 /* sits directly under the topbar */
+      z-index: 90;
+      background: var(--amber);
+      color: #3A2000;
+      padding: 8px 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 0.9rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .next-meeting-bar .nm-label {
+      font-family: 'Oswald', sans-serif;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.78rem;
+      background: rgba(0,0,0,0.12);
+      padding: 2px 10px;
+      border-radius: 99px;
+    }
+    .next-meeting-bar .nm-detail { font-weight: 600; }
+    .next-meeting-bar .nm-sep { opacity: 0.5; }
+    @media (max-width: 640px) {
+      .next-meeting-bar { font-size: 0.82rem; gap: 8px; padding: 7px 1rem; }
+    }
   </style>
 </head>
 <body>
@@ -499,7 +530,17 @@
   </nav>
 </header>
 
-
+<!-- Sticky next meeting banner -->
+<div class="next-meeting-bar" id="next-meeting-bar" style="display:none;">
+  <span class="nm-label">Next Meeting</span>
+  <span class="nm-detail" id="nm-date"></span>
+  <span class="nm-sep">·</span>
+  <span class="nm-detail" id="nm-time"></span>
+  <span class="nm-sep">·</span>
+  <span class="nm-detail" id="nm-location"></span>
+  <span class="nm-sep">·</span>
+  <span style="font-size:0.82rem;">Guests welcome — no RSVP needed</span>
+</div>
 <!-- ── Hero ── -->
 <section class="hero">
   <div class="hero-eyebrow">NJTA Toastmasters — Club #XXXXXX</div>
@@ -937,6 +978,37 @@
     OnRamp is an unofficial club tool, not affiliated with or endorsed by Toastmasters International.
   </p>
 </footer>
+<script>
+(async () => {
+  const sbUrl = 'Yhttps://sxkmvlpzpkoiyvaowdyn.supabase.co';
+  const sbKey = 'sb_publishable_xget8F5pAkCg0LyWsfUf-A_QhgcZWk-';
+  const client = supabase.createClient(sbUrl, sbKey);
 
+  const { data } = await client
+    .from('public_meetings')
+    .select('title, meeting_date, meeting_time, location')
+    .order('meeting_date')
+    .limit(1);
+
+  if (!data || !data.length) return;
+  const m = data[0];
+
+  const d = new Date(m.meeting_date + 'T12:00:00');
+  document.getElementById('nm-date').textContent =
+    d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  if (m.meeting_time) {
+    const [h, min] = m.meeting_time.split(':');
+    const hr = parseInt(h);
+    document.getElementById('nm-time').textContent =
+      `${hr % 12 || 12}:${min} ${hr >= 12 ? 'PM' : 'AM'}`;
+  } else {
+    document.getElementById('nm-time').textContent = 'Time TBD';
+  }
+
+  document.getElementById('nm-location').textContent = m.location || 'NJTA HQ';
+  document.getElementById('next-meeting-bar').style.display = 'flex';
+})();
+</script>
 </body>
 </html>
