@@ -136,6 +136,28 @@
   </div>
 </div>
 
+<!-- Officer: assign member modal -->
+<div class="modal-overlay" id="modal-assign">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-assign-title">Assign a member</span>
+      <button class="modal-close" onclick="closeModal('modal-assign')">✕</button>
+    </div>
+    <p id="modal-assign-desc" style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1rem;"></p>
+    <div class="form-group">
+      <label for="assign-member">Member</label>
+      <select id="assign-member"><option value="">Select member…</option></select>
+    </div>
+    <p style="font-size:0.78rem;color:var(--text-light);margin-bottom:1rem;">
+      For speaker slots, speech details can be added later by the member or an officer.
+    </p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-assign')">Cancel</button>
+      <button class="btn btn-primary" id="modal-assign-btn">Assign</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast-container" class="toast-container"></div>
 
 <script>
@@ -147,6 +169,8 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 let currentProfile = null;
 let pendingAction = null;
+let isOfficer = false;
+let allMembers = [];
 
 const ROLES = [
   { id: 'tmod', name: 'Toastmaster of the Day' },
@@ -177,6 +201,13 @@ async function init() {
     const initials = profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2);
     document.getElementById('nav-avatar').textContent = initials;
     if (profile.role === 'admin') document.getElementById('nav-admin').style.display = '';
+    isOfficer = profile.role === 'admin' || profile.role === 'officer';
+  }
+
+  // Officers/admins can assign members, so load the roster for the picker
+  if (isOfficer) {
+    const { data: members } = await sb.from('members').select('id, full_name').order('full_name');
+    allMembers = members || [];
   }
 
   loadUpcoming();
@@ -246,7 +277,10 @@ function renderRoleSlot(m, role, roles, isPast) {
   }
   return `<div class="role-slot">
     <div><div class="role-name">${role.name}</div><div class="role-person">Open</div></div>
-    <button class="btn btn-outline btn-sm" onclick="openRoleSignup('${m.id}','${role.id}','${role.name}')">Take it</button>
+    <div style="display:flex;gap:6px;">
+      <button class="btn btn-outline btn-sm" onclick="openRoleSignup('${m.id}','${role.id}','${role.name}')">Take it</button>
+      ${isOfficer ? `<button class="btn btn-ghost btn-sm" onclick="openAssignRole('${m.id}','${role.id}','${role.name}')">Assign</button>` : ''}
+    </div>
   </div>`;
 }
 
@@ -308,7 +342,10 @@ function renderFullMeeting(m, isPast = false) {
     return `<div class="speaker-slot">
       <div class="speaker-num">${i + 1}</div>
       <div class="speaker-info"><div class="speaker-name" style="color:var(--text-muted)">Open speaker slot</div></div>
-      <button class="btn btn-amber btn-sm" onclick="openSpeakerSignup('${m.id}', '${slotId}')">Sign up</button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-amber btn-sm" onclick="openSpeakerSignup('${m.id}', '${slotId}')">Sign up</button>
+        ${isOfficer ? `<button class="btn btn-ghost btn-sm" onclick="openAssignSpeaker('${m.id}','${slotId}')">Assign</button>` : ''}
+      </div>
     </div>`;
   }).join('');
 
@@ -491,6 +528,77 @@ async function confirmSpeakerSignup() {
   closeModal('modal-speaker');
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast("You're on the agenda!", 'success');
+  loadUpcoming();
+}
+
+// ── Officer: assign a member to a slot ────────────────────────────────────────
+
+let pendingAssign = null;
+
+function populateMemberPicker() {
+  const sel = document.getElementById('assign-member');
+  sel.innerHTML = '<option value="">Select member…</option>' +
+    allMembers.map(m => `<option value="${m.id}">${m.full_name}</option>`).join('');
+}
+
+function openAssignRole(meetingId, roleId, roleName) {
+  pendingAssign = { type: 'role', meetingId, roleId, roleName };
+  document.getElementById('modal-assign-title').textContent = `Assign — ${roleName}`;
+  document.getElementById('modal-assign-desc').textContent =
+    `Choose a member to sign up as ${roleName} on their behalf.`;
+  populateMemberPicker();
+  document.getElementById('modal-assign-btn').onclick = confirmAssign;
+  openModal('modal-assign');
+}
+
+function openAssignSpeaker(meetingId, slotId) {
+  pendingAssign = { type: 'speaker', meetingId, slotId };
+  document.getElementById('modal-assign-title').textContent = 'Assign — Speaker';
+  document.getElementById('modal-assign-desc').textContent =
+    'Choose a member to sign up as a prepared speaker. Speech details can be added later.';
+  populateMemberPicker();
+  document.getElementById('modal-assign-btn').onclick = confirmAssign;
+  openModal('modal-assign');
+}
+
+async function confirmAssign() {
+  if (!pendingAssign) return;
+  const memberId = document.getElementById('assign-member').value;
+  if (!memberId) { showToast('Please pick a member.', 'error'); return; }
+
+  const btn = document.getElementById('modal-assign-btn');
+  btn.textContent = 'Assigning…'; btn.disabled = true;
+
+  let error;
+  if (pendingAssign.type === 'role') {
+    ({ error } = await sb.from('meeting_roles').insert({
+      meeting_id: pendingAssign.meetingId,
+      role_id: pendingAssign.roleId,
+      member_id: memberId,
+    }));
+  } else {
+    // Speaker slot: claim the specific open slot, or the first open one
+    let targetSlotId = pendingAssign.slotId && pendingAssign.slotId !== 'null' ? pendingAssign.slotId : null;
+    if (!targetSlotId) {
+      const { data: openSlot } = await sb.from('speaker_slots')
+        .select('id').eq('meeting_id', pendingAssign.meetingId).is('member_id', null).limit(1).single();
+      if (!openSlot) { showToast('No open speaker slots.', 'error'); btn.textContent = 'Assign'; btn.disabled = false; return; }
+      targetSlotId = openSlot.id;
+    }
+    ({ error } = await sb.from('speaker_slots').update({ member_id: memberId }).eq('id', targetSlotId));
+    if (!error) {
+      await sb.from('speeches').insert({
+        member_id: memberId,
+        meeting_id: pendingAssign.meetingId,
+        speaker_slot_id: targetSlotId,
+      });
+    }
+  }
+
+  btn.textContent = 'Assign'; btn.disabled = false;
+  closeModal('modal-assign');
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('Member assigned.', 'success');
   loadUpcoming();
 }
 
