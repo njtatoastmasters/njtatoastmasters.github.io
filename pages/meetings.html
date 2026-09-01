@@ -154,6 +154,16 @@ const ROLES = [
   { id: 'wordmaster', name: 'Wordmaster' },
 ];
 
+// Evaluator roles scale with the number of speaker slots for a meeting.
+// role_id is eval1, eval2, ... so each flows through meeting_roles like any role.
+function evaluatorRoles(speakerCount) {
+  const n = speakerCount || 3;
+  return Array.from({ length: n }, (_, i) => ({
+    id: `eval${i + 1}`,
+    name: `Evaluator ${i + 1}`,
+  }));
+}
+
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../index.html'; return; }
@@ -213,38 +223,43 @@ async function loadPast() {
   el.innerHTML = meetings.map(m => renderFullMeeting(m, true)).join('<hr class="road-line">');
 }
 
+// Renders a single role slot (used for both fixed roles and evaluators)
+function renderRoleSlot(m, role, roles, isPast) {
+  const filled = roles.find(r => r.role_id === role.id);
+  const isMe = filled && filled.member_id === currentUser.id;
+  if (isPast) {
+    return `<div class="role-slot ${filled ? 'filled' : ''}">
+      <div><div class="role-name">${role.name}</div>
+      <div class="role-person">${filled ? filled.members?.full_name || 'Unknown' : 'Open'}</div></div>
+    </div>`;
+  }
+  if (isMe) {
+    return `<div class="role-slot mine">
+      <div><div class="role-name">${role.name}</div><div class="role-person">You</div></div>
+      <button class="btn btn-danger btn-sm" onclick="openDropRole('${m.id}','${role.id}','${role.name}')">Drop</button>
+    </div>`;
+  }
+  if (filled) {
+    return `<div class="role-slot filled">
+      <div><div class="role-name">${role.name}</div><div class="role-person">${filled.members?.full_name || 'Taken'}</div></div>
+    </div>`;
+  }
+  return `<div class="role-slot">
+    <div><div class="role-name">${role.name}</div><div class="role-person">Open</div></div>
+    <button class="btn btn-outline btn-sm" onclick="openRoleSignup('${m.id}','${role.id}','${role.name}')">Take it</button>
+  </div>`;
+}
+
 function renderFullMeeting(m, isPast = false) {
   const d = formatDateShort(m.meeting_date);
   const roles = m.meeting_roles || [];
   const speakers = m.speaker_slots || [];
-
-  const roleSlots = ROLES.map(role => {
-    const filled = roles.find(r => r.role_id === role.id);
-    const isMe = filled && filled.member_id === currentUser.id;
-    if (isPast) {
-      return `<div class="role-slot ${filled ? 'filled' : ''}">
-        <div><div class="role-name">${role.name}</div>
-        <div class="role-person">${filled ? filled.members?.full_name || 'Unknown' : 'Open'}</div></div>
-      </div>`;
-    }
-    if (isMe) {
-      return `<div class="role-slot mine">
-        <div><div class="role-name">${role.name}</div><div class="role-person">You</div></div>
-        <button class="btn btn-danger btn-sm" onclick="openDropRole('${m.id}','${role.id}','${role.name}')">Drop</button>
-      </div>`;
-    }
-    if (filled) {
-      return `<div class="role-slot filled">
-        <div><div class="role-name">${role.name}</div><div class="role-person">${filled.members?.full_name || 'Taken'}</div></div>
-      </div>`;
-    }
-    return `<div class="role-slot">
-      <div><div class="role-name">${role.name}</div><div class="role-person">Open</div></div>
-      <button class="btn btn-outline btn-sm" onclick="openRoleSignup('${m.id}','${role.id}','${role.name}')">Take it</button>
-    </div>`;
-  }).join('');
-
   const maxSpeakers = m.speaker_slots_count || 3;
+  const evalRoles = evaluatorRoles(maxSpeakers);
+
+  const roleSlots = ROLES.map(role => renderRoleSlot(m, role, roles, isPast)).join('');
+  const evalSlots = evalRoles.map(role => renderRoleSlot(m, role, roles, isPast)).join('');
+
   // Only count slots that have a member assigned
   const filledSlots = speakers.filter(s => s.member_id);
   const openSlots = speakers.filter(s => !s.member_id);
@@ -289,7 +304,6 @@ function renderFullMeeting(m, isPast = false) {
         </div>
       </div>`;
     }
-    // Open slot — use the actual slot id if available so we update the right row
     const slotId = openSlot ? openSlot.id : null;
     return `<div class="speaker-slot">
       <div class="speaker-num">${i + 1}</div>
@@ -298,7 +312,10 @@ function renderFullMeeting(m, isPast = false) {
     </div>`;
   }).join('');
 
-  const openRoles = ROLES.length - roles.length;
+  // Open counts: fixed roles + evaluators together
+  const allRoleIds = [...ROLES.map(r => r.id), ...evalRoles.map(r => r.id)];
+  const filledRoleCount = roles.filter(r => allRoleIds.includes(r.role_id)).length;
+  const openRoles = allRoleIds.length - filledRoleCount;
   const openSpeakers = maxSpeakers - speakers.filter(s => s.member_id).length;
 
   return `<div id="meeting-${m.id}">
@@ -327,9 +344,14 @@ function renderFullMeeting(m, isPast = false) {
       <div class="roles-grid">${roleSlots}</div>
     </div>
 
-    <div class="card">
+    <div class="card" style="margin-bottom:1rem;">
       <div class="card-header"><span class="card-title">Prepared speakers</span></div>
       <div style="padding:0 0.25rem;">${speakerSlots}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Evaluators</span><span style="font-size:0.78rem;color:var(--text-muted);">One per speaker</span></div>
+      <div class="roles-grid">${evalSlots}</div>
     </div>
   </div>`;
 }
@@ -446,7 +468,6 @@ async function confirmSpeakerSignup() {
   let targetSlotId = editingSlotId;
 
   if (!targetSlotId) {
-    // Fallback: find first open slot for this meeting
     const { data: openSlot } = await sb.from('speaker_slots')
       .select('id').eq('meeting_id', pendingSpeakerMeeting).is('member_id', null).limit(1).single();
     if (!openSlot) { showToast('No open speaker slots found.', 'error'); btn.textContent = 'Sign me up'; btn.disabled = false; return; }
@@ -455,7 +476,6 @@ async function confirmSpeakerSignup() {
 
   ({ error } = await sb.from('speaker_slots').update(payload).eq('id', targetSlotId));
 
-  // Log to speeches history on new signup (not edit)
   if (!error && !editingSlotId) {
     await sb.from('speeches').insert({
       member_id: currentUser.id,
