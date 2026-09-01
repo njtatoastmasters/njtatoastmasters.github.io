@@ -155,6 +155,13 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ROLE_NAMES = { tmod: 'Toastmaster of the Day', timer: 'Timer', wordmaster: 'Wordmaster' };
+// Resolve a role_id to a friendly name, including dynamic evaluator roles (eval1, eval2, ...)
+function roleName(roleId) {
+  if (ROLE_NAMES[roleId]) return ROLE_NAMES[roleId];
+  const m = /^eval(\d+)$/.exec(roleId);
+  if (m) return `Evaluator ${m[1]}`;
+  return roleId;
+}
 const ALLOWED_ROLES = ['admin', 'officer'];
 
 let currentUser = null;
@@ -268,7 +275,7 @@ function renderRoles() {
     const val = roleConfirmMap[r.id];
     return `<div class="reconcile-row">
       <div>
-        <div class="reconcile-name">${ROLE_NAMES[r.role_id] || r.role_id}</div>
+        <div class="reconcile-name">${roleName(r.role_id)}</div>
         <div class="reconcile-sub">${r.members?.full_name || 'Unknown'}</div>
       </div>
       <div>

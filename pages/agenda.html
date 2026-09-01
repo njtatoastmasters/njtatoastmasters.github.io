@@ -259,7 +259,9 @@ async function init() {
 
   const roles = meeting.meeting_roles || [];
   const speakers = (meeting.speaker_slots || []).filter(s => s.member_id);
-  const totalSlots = ROLES.length + (meeting.speaker_slots_count || 3);
+  const speakerCount = meeting.speaker_slots_count || 3;
+  // Total slots = fixed roles + speaker slots + one evaluator per speaker
+  const totalSlots = ROLES.length + speakerCount + speakerCount;
   const filled = roles.length + speakers.length;
   const pct = Math.round((filled / totalSlots) * 100);
 
@@ -279,8 +281,9 @@ async function init() {
     </div>`;
   }
 
-  const speakerItems = Array.from({ length: meeting.speaker_slots_count || 3 }, (_, i) => {
-    const slot = (meeting.speaker_slots || []).filter(s => s.member_id)[i];
+  const filledSpeakers = (meeting.speaker_slots || []).filter(s => s.member_id);
+  const speakerItems = Array.from({ length: speakerCount }, (_, i) => {
+    const slot = filledSpeakers[i];
     const hasSpeaker = slot && slot.member_id;
     return `<div class="agenda-item ${hasSpeaker ? '' : 'agenda-item-open'}">
       <div class="agenda-item-time">${i + 1}</div>
@@ -290,6 +293,20 @@ async function init() {
         ${hasSpeaker && slot.evaluator_notes ? `<div class="agenda-item-detail">Evaluator focus: ${slot.evaluator_notes}</div>` : ''}
       </div>
       <div class="agenda-item-person">${hasSpeaker ? slot.members?.full_name : 'Open'}</div>
+    </div>`;
+  }).join('');
+
+  // One evaluator per speaker slot; role_id is eval1, eval2, ...
+  const evaluatorItems = Array.from({ length: speakerCount }, (_, i) => {
+    const person = roleMap[`eval${i + 1}`];
+    const speaker = filledSpeakers[i];
+    const speakerLabel = speaker && speaker.members?.full_name
+      ? `Evaluates ${speaker.members.full_name}`
+      : `Evaluator ${i + 1}`;
+    return `<div class="agenda-item ${person ? '' : 'agenda-item-open'}">
+      <div class="agenda-item-time"></div>
+      <div><div class="agenda-item-role">${speakerLabel}</div></div>
+      <div class="agenda-item-person">${person || 'Open'}</div>
     </div>`;
   }).join('');
 
@@ -304,6 +321,11 @@ async function init() {
     <div class="agenda-section">
       <div class="agenda-section-title">Prepared speeches</div>
       ${speakerItems}
+    </div>
+
+    <div class="agenda-section">
+      <div class="agenda-section-title">Evaluators</div>
+      ${evaluatorItems}
     </div>
 
     <div class="agenda-section">
