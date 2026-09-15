@@ -1,76 +1,101 @@
-// OnRamp login logic — external file (no inline JS, per security review)
-const SUPABASE_URL = 'https://sxkmvlpzpkoiyvaowdyn.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_xget8F5pAkCg0LyWsfUf-A_QhgcZWk-';
+// OnRamp login logic — OTP (6-digit code) flow
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// If already logged in, go to dashboard
+// Already logged in? Go straight to dashboard.
 sb.auth.getSession().then(({ data }) => {
   if (data.session) window.location.href = 'pages/dashboard.html';
 });
 
-// Handle auth callback (when user clicks magic link)
-sb.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_IN' && session) {
-    window.location.href = 'pages/dashboard.html';
-  }
-});
+let pendingEmail = null;
 
-async function sendMagicLink() {
+// ── Step 1: request a code ───────────────────────────────────────
+async function sendCode() {
   const email = document.getElementById('email').value.trim();
 
-  // Client-side email format validation
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-    showAlert('Please enter a valid email address.', 'danger');
+    showAlert('login-alert', 'Please enter a valid email address.', 'danger');
     return;
   }
 
-  // Require a completed CAPTCHA before sending
   const captchaToken = typeof turnstile !== 'undefined' ? turnstile.getResponse() : null;
   if (!captchaToken) {
-    showAlert('Please complete the verification check below.', 'danger');
+    showAlert('login-alert', 'Please complete the verification check below.', 'danger');
     return;
   }
 
-  const btn = document.getElementById('send-link-btn');
+  const btn = document.getElementById('send-code-btn');
   btn.textContent = 'Sending…';
   btn.disabled = true;
 
+  // shouldCreateUser:false means only existing/allowlisted accounts get a code.
   await sb.auth.signInWithOtp({
     email,
-    options: {
-      emailRedirectTo: 'https://njtatoastmasters.github.io/pages/dashboard.html',
-      captchaToken
-    }
+    options: { captchaToken, shouldCreateUser: false }
   });
 
-  // Anti-enumeration: same confirmation regardless of outcome, so the
-  // response never reveals whether an email is registered with the club.
-  btn.textContent = 'Send sign-in link';
+  // Always advance to the code screen (don't reveal whether the email exists).
+  pendingEmail = email;
+  btn.textContent = 'Send my code';
   btn.disabled = false;
+  document.getElementById('verify-email').textContent = email;
   document.getElementById('form-request').style.display = 'none';
-  document.getElementById('sent-email').textContent = email;
-  document.getElementById('form-sent').style.display = 'block';
+  document.getElementById('form-verify').style.display = 'block';
+  document.getElementById('code').focus();
 }
 
-function showAlert(msg, type) {
-  const el = document.getElementById('login-alert');
+// ── Step 2: verify the code ──────────────────────────────────────
+async function verifyCode() {
+  const code = document.getElementById('code').value.trim();
+
+  if (!/^\d{6}$/.test(code)) {
+    showAlert('verify-alert', 'Enter the 6-digit code from your email.', 'danger');
+    return;
+  }
+
+  const btn = document.getElementById('verify-code-btn');
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+
+  const { error } = await sb.auth.verifyOtp({
+    email: pendingEmail,
+    token: code,
+    type: 'email'
+  });
+
+  if (error) {
+    showAlert('verify-alert', 'That code is incorrect or expired. Please try again.', 'danger');
+    btn.textContent = 'Sign in';
+    btn.disabled = false;
+    return;
+  }
+
+  window.location.href = 'pages/dashboard.html';
+}
+
+function goBack() {
+  document.getElementById('form-verify').style.display = 'none';
+  document.getElementById('form-request').style.display = 'block';
+  document.getElementById('code').value = '';
+  hide('verify-alert');
+  hide('login-alert');
+  if (typeof turnstile !== 'undefined') turnstile.reset();
+}
+
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
   el.className = 'alert alert-' + type;
   el.textContent = msg;
   el.style.display = 'flex';
 }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
 
-function resetForm() {
-  document.getElementById('form-request').style.display = 'block';
-  document.getElementById('form-sent').style.display = 'none';
-  document.getElementById('email').value = '';
-  if (typeof turnstile !== 'undefined') turnstile.reset();
-}
-
-// Event listeners (replaces inline onclick handlers)
-document.getElementById('send-link-btn').addEventListener('click', sendMagicLink);
-document.getElementById('reset-form-btn').addEventListener('click', resetForm);
-document.getElementById('email').addEventListener('keydown', function (e) {
-  if (e.key === 'Enter') sendMagicLink();
-});
+// ── Wire up events (no inline handlers, per security review) ──────
+document.getElementById('send-code-btn').addEventListener('click', sendCode);
+document.getElementById('verify-code-btn').addEventListener('click', verifyCode);
+document.getElementById('back-btn').addEventListener('click', goBack);
+document.getElementById('email').addEventListener('keydown', e => { if (e.key === 'Enter') sendCode(); });
+document.getElementById('code').addEventListener('keydown', e => { if (e.key === 'Enter') verifyCode(); });
