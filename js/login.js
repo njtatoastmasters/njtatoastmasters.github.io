@@ -51,7 +51,7 @@ async function sendCode() {
 async function verifyCode() {
   const code = document.getElementById('code').value.trim();
 
-  if (!/^\d{6}$/.test(code)) {
+if (!/^\d{6,8}$/.test(code)) {
     showAlert('verify-alert', 'Enter the 6-digit code from your email.', 'danger');
     return;
   }
