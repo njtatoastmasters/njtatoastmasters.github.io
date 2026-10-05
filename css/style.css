@@ -791,3 +791,14 @@ textarea { resize: vertical; min-height: 80px; }
   .stats-row { grid-template-columns: repeat(2, 1fr); }
   .roles-grid { grid-template-columns: 1fr; }
 }
+/* Keep role-slot action buttons inside the box */
+.role-slot {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.role-slot > div:last-child {
+  flex-shrink: 0;
+}
+.role-slot .btn {
+  white-space: nowrap;
+}
