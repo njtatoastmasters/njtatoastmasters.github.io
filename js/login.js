@@ -34,7 +34,7 @@ async function sendCode() {
   // shouldCreateUser:false means only existing/allowlisted accounts get a code.
   await sb.auth.signInWithOtp({
     email,
-    options: { captchaToken, shouldCreateUser: false }
+    options: { captchaToken, shouldCreateUser: true }
   });
 
   // Always advance to the code screen (don't reveal whether the email exists).
@@ -52,7 +52,7 @@ async function verifyCode() {
   const code = document.getElementById('code').value.trim();
 
 if (!/^\d{6,8}$/.test(code)) {
-    showAlert('verify-alert', 'Enter the 6-digit code from your email.', 'danger');
+    showAlert('verify-alert', 'Enter the code from your email.', 'danger');
     return;
   }
 
