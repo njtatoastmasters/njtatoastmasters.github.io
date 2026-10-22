@@ -8,10 +8,20 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     @media print {
+      @page { size: letter portrait; margin: 0.4in; }
       .nav, .no-print { display: none !important; }
-      body { background: white; }
+      body { background: white; font-size: 10pt; }
       .agenda-wrap { max-width: 100%; padding: 0; }
       .card { box-shadow: none; border: 1px solid #ddd; }
+      /* Compress spacing so the full agenda fits one page */
+      .agenda-header { margin-bottom: 0.6rem !important; }
+      .agenda-meeting-title { font-size: 1.5rem !important; }
+      .road-line { margin: 0.5rem 0 !important; }
+      .fill-status { display: none !important; }       /* progress bar is screen-only */
+      .agenda-section { margin-bottom: 0.55rem !important; }
+      .agenda-section-title { margin-bottom: 0.3rem !important; font-size: 0.78rem !important; }
+      .agenda-item { padding: 3px 0 !important; }
+      .word-of-day-box { display: none !important; }    /* already .no-print, belt-and-suspenders */
     }
 
     .agenda-wrap { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
