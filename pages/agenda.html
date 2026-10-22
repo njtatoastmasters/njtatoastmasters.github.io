@@ -272,6 +272,11 @@ async function init() {
   const roleMap = {};
   roles.forEach(r => { roleMap[r.role_id] = r.members?.full_name || 'TBD'; });
 
+  // Theme + TMOD name from the tmod role row
+  const tmodRow = roles.find(r => r.role_id === 'tmod');
+  const tmodName = tmodRow ? (tmodRow.members?.full_name || 'TBD') : 'TBD';
+  const meetingTheme = tmodRow?.theme || null;
+
   function roleItem(role) {
     const person = roleMap[role.id];
     return `<div class="agenda-item ${person ? '' : 'agenda-item-open'}">
@@ -285,11 +290,12 @@ async function init() {
   const speakerItems = Array.from({ length: speakerCount }, (_, i) => {
     const slot = filledSpeakers[i];
     const hasSpeaker = slot && slot.member_id;
+    const timeLabel = hasSpeaker ? (slot.speech_time || '5 to 7 min') : '';
     return `<div class="agenda-item ${hasSpeaker ? '' : 'agenda-item-open'}">
       <div class="agenda-item-time">${i + 1}</div>
       <div>
         <div class="agenda-item-role">${hasSpeaker ? `"${slot.speech_title || 'Title TBD'}"` : 'Speaker slot open'}</div>
-        ${hasSpeaker && slot.pathway ? `<div class="speaker-detail">${[slot.pathway, slot.project_name].filter(Boolean).join(' · ')}</div>` : ''}
+        ${hasSpeaker && slot.pathway ? `<div class="speaker-detail">${[slot.pathway, slot.project_name].filter(Boolean).join(' · ')}${timeLabel ? ` · ${timeLabel}` : ''}</div>` : (hasSpeaker && timeLabel ? `<div class="speaker-detail">${timeLabel}</div>` : '')}
         ${hasSpeaker && slot.evaluator_notes ? `<div class="agenda-item-detail">Evaluator focus: ${slot.evaluator_notes}</div>` : ''}
       </div>
       <div class="agenda-item-person">${hasSpeaker ? slot.members?.full_name : 'Open'}</div>
@@ -319,8 +325,29 @@ async function init() {
     </div>
 
     <div class="agenda-section">
+      <div class="agenda-section-title">Toastmaster of the Day — Introduces Theme</div>
+      <div class="agenda-item ${meetingTheme ? '' : 'agenda-item-open'}">
+        <div class="agenda-item-time"></div>
+        <div><div class="agenda-item-role">${meetingTheme ? `Theme: ${meetingTheme}` : 'Theme to be announced'}</div></div>
+        <div class="agenda-item-person">${tmodName}</div>
+      </div>
+    </div>
+
+    <div class="agenda-section">
       <div class="agenda-section-title">Prepared speeches</div>
       ${speakerItems}
+    </div>
+
+    <div class="agenda-section">
+      <div class="agenda-section-title">Table Topics</div>
+      <div class="agenda-item">
+        <div class="agenda-item-time"></div>
+        <div>
+          <div class="agenda-item-role" style="color:var(--text-muted);font-weight:400;font-style:italic;">Open to all members — facilitated by Toastmaster of the Day</div>
+          <div class="agenda-item-detail">Wrap up 20 minutes before the top of the hour.</div>
+        </div>
+        <div></div>
+      </div>
     </div>
 
     <div class="agenda-section">
@@ -329,11 +356,11 @@ async function init() {
     </div>
 
     <div class="agenda-section">
-      <div class="agenda-section-title">Table Topics</div>
+      <div class="agenda-section-title">Toastmaster of the Day — Club Announcements, Call to Action, Adjourn</div>
       <div class="agenda-item">
         <div class="agenda-item-time"></div>
-        <div><div class="agenda-item-role" style="color:var(--text-muted);font-weight:400;font-style:italic;">Open to all members — facilitated by Toastmaster of the Day</div></div>
-        <div></div>
+        <div><div class="agenda-item-role" style="font-weight:400;">Club announcements · Call to action · Adjourn</div></div>
+        <div class="agenda-item-person">${tmodName}</div>
       </div>
     </div>
 

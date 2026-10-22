@@ -65,7 +65,11 @@
       <span class="modal-title" id="modal-role-title">Sign up for role</span>
       <button class="modal-close" onclick="closeModal('modal-role')">✕</button>
     </div>
-    <p id="modal-role-desc" style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem;"></p>
+    <p id="modal-role-desc" style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.25rem;"></p>
+    <div class="form-group" id="theme-field" style="display:none;">
+      <label for="role-theme">Meeting theme <span style="color:var(--text-light);font-weight:400;text-transform:none;">(you can update this later)</span></label>
+      <input type="text" id="role-theme" placeholder="e.g. New Beginnings">
+    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-role')">Cancel</button>
       <button class="btn btn-primary" id="modal-role-btn">Confirm</button>
@@ -80,8 +84,12 @@
       <span class="modal-title">Sign up as speaker</span>
       <button class="modal-close" onclick="closeModal('modal-speaker')">✕</button>
     </div>
+    <div class="form-group" id="speaker-member-field" style="display:none;">
+      <label for="speaker-member">Member</label>
+      <select id="speaker-member"><option value="">Select member…</option></select>
+    </div>
     <div class="form-group">
-      <label for="speech-title">Speech title <span style="color:var(--text-light);font-weight:400;text-transform:none;">(you can update this later)</span></label>
+      <label for="speech-title">Speech title <span style="color:var(--text-light);font-weight:400;text-transform:none;">(can be updated later)</span></label>
       <input type="text" id="speech-title" placeholder="e.g. The Road Not Taken">
     </div>
     <div class="form-row form-row-2">
@@ -109,6 +117,10 @@
         <label for="speech-project">Project name / number</label>
         <input type="text" id="speech-project" placeholder="e.g. Level 2 – Research">
       </div>
+    </div>
+    <div class="form-group">
+      <label for="speech-time">Speech length</label>
+      <input type="text" id="speech-time" placeholder="5 to 7 min" value="5 to 7 min">
     </div>
     <div class="form-group">
       <label for="speech-notes">Notes for your evaluator <span style="color:var(--text-light);font-weight:400;text-transform:none;">(optional)</span></label>
@@ -265,14 +277,23 @@ function renderRoleSlot(m, role, roles, isPast) {
     </div>`;
   }
   if (isMe) {
+    const themeLine = (role.id === 'tmod' && filled.theme)
+      ? `<div class="role-person" style="color:var(--green);">Theme: ${filled.theme}</div>` : '';
+    const editBtn = role.id === 'tmod'
+      ? `<button class="btn btn-outline btn-sm" onclick="openEditTheme('${m.id}','${filled.theme ? filled.theme.replace(/'/g,"\\'") : ''}')">Edit theme</button>` : '';
     return `<div class="role-slot mine">
-      <div><div class="role-name">${role.name}</div><div class="role-person">You</div></div>
-      <button class="btn btn-danger btn-sm" onclick="openDropRole('${m.id}','${role.id}','${role.name}')">Drop</button>
+      <div><div class="role-name">${role.name}</div><div class="role-person">You</div>${themeLine}</div>
+      <div style="display:flex;gap:6px;">
+        ${editBtn}
+        <button class="btn btn-danger btn-sm" onclick="openDropRole('${m.id}','${role.id}','${role.name}')">Drop</button>
+      </div>
     </div>`;
   }
   if (filled) {
+    const themeLine = (role.id === 'tmod' && filled.theme)
+      ? `<div class="role-person" style="color:var(--green);">Theme: ${filled.theme}</div>` : '';
     return `<div class="role-slot filled">
-      <div><div class="role-name">${role.name}</div><div class="role-person">${filled.members?.full_name || 'Taken'}</div></div>
+      <div><div class="role-name">${role.name}</div><div class="role-person">${filled.members?.full_name || 'Taken'}</div>${themeLine}</div>
     </div>`;
   }
   return `<div class="role-slot">
@@ -336,6 +357,10 @@ function renderFullMeeting(m, isPast = false) {
           <div class="speaker-title">${filledSlot.speech_title || 'Title TBD'}</div>
           <div class="speaker-project">${[filledSlot.pathway, filledSlot.project_name].filter(Boolean).join(' · ')}</div>
         </div>
+        ${isOfficer ? `<div style="display:flex;gap:6px;">
+          <button class="btn btn-outline btn-sm" onclick="openEditSpeaker('${m.id}','${filledSlot.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="openDropSpeaker('${m.id}','${filledSlot.id}')">Drop</button>
+        </div>` : ''}
       </div>`;
     }
     const slotId = openSlot ? openSlot.id : null;
@@ -401,6 +426,10 @@ function openRoleSignup(meetingId, roleId, roleName) {
   pendingRoleSignup = { meetingId, roleId, type: 'add' };
   document.getElementById('modal-role-title').textContent = roleName;
   document.getElementById('modal-role-desc').textContent = `You're signing up as ${roleName}. You can drop this role up until the day before the meeting.`;
+  // Theme field shows only for Toastmaster of the Day
+  const themeField = document.getElementById('theme-field');
+  document.getElementById('role-theme').value = '';
+  themeField.style.display = roleId === 'tmod' ? '' : 'none';
   document.getElementById('modal-role-btn').textContent = 'Confirm sign-up';
   document.getElementById('modal-role-btn').onclick = confirmRoleSignup;
   openModal('modal-role');
@@ -412,16 +441,51 @@ async function confirmRoleSignup() {
   const btn = document.getElementById('modal-role-btn');
   btn.textContent = 'Saving…'; btn.disabled = true;
 
-  const { error } = await sb.from('meeting_roles').insert({
+  const row = {
     meeting_id: meetingId,
     role_id: roleId,
     member_id: currentUser.id,
-  });
+  };
+  if (roleId === 'tmod') row.theme = document.getElementById('role-theme').value.trim() || null;
+
+  const { error } = await sb.from('meeting_roles').insert(row);
 
   btn.textContent = 'Confirm sign-up'; btn.disabled = false;
   closeModal('modal-role');
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('You\'re signed up!', 'success');
+  loadUpcoming();
+}
+
+// ── Edit theme (Toastmaster of the Day) ───────────────────────────────────────
+
+let editingThemeMeeting = null;
+
+function openEditTheme(meetingId, currentTheme) {
+  editingThemeMeeting = meetingId;
+  document.getElementById('modal-role-title').textContent = 'Update meeting theme';
+  document.getElementById('modal-role-desc').textContent = 'As Toastmaster of the Day, set or update the theme for this meeting.';
+  document.getElementById('theme-field').style.display = '';
+  document.getElementById('role-theme').value = currentTheme || '';
+  document.getElementById('modal-role-btn').textContent = 'Save theme';
+  document.getElementById('modal-role-btn').onclick = confirmEditTheme;
+  openModal('modal-role');
+}
+
+async function confirmEditTheme() {
+  const btn = document.getElementById('modal-role-btn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  const { error } = await sb.from('meeting_roles')
+    .update({ theme: document.getElementById('role-theme').value.trim() || null })
+    .eq('meeting_id', editingThemeMeeting)
+    .eq('role_id', 'tmod')
+    .eq('member_id', currentUser.id);
+
+  btn.textContent = 'Save theme'; btn.disabled = false;
+  closeModal('modal-role');
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('Theme updated.', 'success');
   loadUpcoming();
 }
 
@@ -456,10 +520,11 @@ async function confirmDrop() {
       .eq('role_id', pendingDrop.roleId)
       .eq('member_id', currentUser.id));
   } else {
-    ({ error } = await sb.from('speaker_slots')
-      .update({ member_id: null, speech_title: null, pathway: null, project_name: null, evaluator_notes: null })
-      .eq('id', pendingDrop.slotId)
-      .eq('member_id', currentUser.id));
+    let q = sb.from('speaker_slots')
+      .update({ member_id: null, speech_title: null, pathway: null, project_name: null, speech_time: '5 to 7 min', evaluator_notes: null })
+      .eq('id', pendingDrop.slotId);
+    if (!isOfficer) q = q.eq('member_id', currentUser.id);  // officers may drop anyone
+    ({ error } = await q);
   }
 
   btn.textContent = 'Yes, drop it'; btn.disabled = false;
@@ -477,29 +542,56 @@ let editingSlotId = null;
 function openSpeakerSignup(meetingId, slotId) {
   pendingSpeakerMeeting = meetingId;
   editingSlotId = slotId && slotId !== 'null' ? slotId : null;
+  assignSpeakerMode = false;
+  document.getElementById('speaker-member-field').style.display = 'none';
+  document.querySelector('#modal-speaker .modal-title').textContent = 'Sign up as speaker';
+  document.querySelector('#modal-speaker .btn-amber').textContent = 'Sign me up';
   ['speech-title', 'speech-pathway', 'speech-project', 'speech-notes'].forEach(id => {
     document.getElementById(id).value = '';
   });
+  document.getElementById('speech-time').value = '5 to 7 min';
   openModal('modal-speaker');
 }
 
-function openEditSpeaker(meetingId, slotId) {
+async function openEditSpeaker(meetingId, slotId) {
   pendingSpeakerMeeting = meetingId;
   editingSlotId = slotId;
+  assignSpeakerMode = false;
+  document.getElementById('speaker-member-field').style.display = 'none';
+  document.querySelector('#modal-speaker .modal-title').textContent = 'Edit speech details';
+  document.querySelector('#modal-speaker .btn-amber').textContent = 'Save changes';
+  // Load existing values into the form
+  const { data: slot } = await sb.from('speaker_slots').select('*').eq('id', slotId).single();
+  if (slot) {
+    document.getElementById('speech-title').value = slot.speech_title || '';
+    document.getElementById('speech-pathway').value = slot.pathway || '';
+    document.getElementById('speech-project').value = slot.project_name || '';
+    document.getElementById('speech-time').value = slot.speech_time || '5 to 7 min';
+    document.getElementById('speech-notes').value = slot.evaluator_notes || '';
+  }
   openModal('modal-speaker');
 }
 
 async function confirmSpeakerSignup() {
   const btn = document.querySelector('#modal-speaker .btn-amber');
+  const origLabel = btn.textContent;
   btn.textContent = 'Saving…'; btn.disabled = true;
 
-  const payload = {
-    member_id: currentUser.id,
+  // Speech detail fields (member_id set only on a fresh sign-up, below)
+  const details = {
     speech_title: document.getElementById('speech-title').value.trim() || null,
     pathway: document.getElementById('speech-pathway').value || null,
     project_name: document.getElementById('speech-project').value.trim() || null,
+    speech_time: document.getElementById('speech-time').value.trim() || '5 to 7 min',
     evaluator_notes: document.getElementById('speech-notes').value.trim() || null,
   };
+
+  // In assign mode, the officer picks who the speaker is
+  let assignMemberId = null;
+  if (assignSpeakerMode) {
+    assignMemberId = document.getElementById('speaker-member').value;
+    if (!assignMemberId) { showToast('Please pick a member.', 'error'); btn.textContent = origLabel; btn.disabled = false; return; }
+  }
 
   let error;
   let targetSlotId = editingSlotId;
@@ -507,27 +599,35 @@ async function confirmSpeakerSignup() {
   if (!targetSlotId) {
     const { data: openSlot } = await sb.from('speaker_slots')
       .select('id').eq('meeting_id', pendingSpeakerMeeting).is('member_id', null).limit(1).single();
-    if (!openSlot) { showToast('No open speaker slots found.', 'error'); btn.textContent = 'Sign me up'; btn.disabled = false; return; }
+    if (!openSlot) { showToast('No open speaker slots found.', 'error'); btn.textContent = origLabel; btn.disabled = false; return; }
     targetSlotId = openSlot.id;
   }
 
+  const { data: existing } = await sb.from('speaker_slots').select('member_id').eq('id', targetSlotId).single();
+  const slotHadMember = !!existing?.member_id;
+
+  // Who owns this slot after save: assigned member, existing member, or current user
+  const ownerId = assignSpeakerMode ? assignMemberId : (slotHadMember ? existing.member_id : currentUser.id);
+  const isNewSignup = !slotHadMember;  // creates a speeches history row
+
+  const payload = isNewSignup ? { ...details, member_id: ownerId } : details;
   ({ error } = await sb.from('speaker_slots').update(payload).eq('id', targetSlotId));
 
-  if (!error && !editingSlotId) {
+  if (!error && isNewSignup) {
     await sb.from('speeches').insert({
-      member_id: currentUser.id,
+      member_id: ownerId,
       meeting_id: pendingSpeakerMeeting,
-      speech_title: payload.speech_title,
-      pathway: payload.pathway,
-      project_name: payload.project_name,
+      speech_title: details.speech_title,
+      pathway: details.pathway,
+      project_name: details.project_name,
       speaker_slot_id: targetSlotId,
     });
   }
 
-  btn.textContent = 'Sign me up'; btn.disabled = false;
+  btn.textContent = origLabel; btn.disabled = false;
   closeModal('modal-speaker');
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast("You're on the agenda!", 'success');
+  showToast(assignSpeakerMode ? 'Speaker assigned.' : (isNewSignup ? "You're on the agenda!" : 'Speech details saved.'), 'success');
   loadUpcoming();
 }
 
@@ -551,14 +651,25 @@ function openAssignRole(meetingId, roleId, roleName) {
   openModal('modal-assign');
 }
 
+// Officer: assign a speaker — opens the full speaker modal with a member picker
+let assignSpeakerMode = false;
+
 function openAssignSpeaker(meetingId, slotId) {
-  pendingAssign = { type: 'speaker', meetingId, slotId };
-  document.getElementById('modal-assign-title').textContent = 'Assign — Speaker';
-  document.getElementById('modal-assign-desc').textContent =
-    'Choose a member to sign up as a prepared speaker. Speech details can be added later.';
-  populateMemberPicker();
-  document.getElementById('modal-assign-btn').onclick = confirmAssign;
-  openModal('modal-assign');
+  pendingSpeakerMeeting = meetingId;
+  editingSlotId = slotId && slotId !== 'null' ? slotId : null;
+  assignSpeakerMode = true;
+  document.querySelector('#modal-speaker .modal-title').textContent = 'Assign a speaker';
+  document.querySelector('#modal-speaker .btn-amber').textContent = 'Assign speaker';
+  // Show + populate the member dropdown
+  const field = document.getElementById('speaker-member-field');
+  field.style.display = '';
+  const sel = document.getElementById('speaker-member');
+  sel.innerHTML = '<option value="">Select member…</option>' +
+    allMembers.map(m => `<option value="${m.id}">${m.full_name}</option>`).join('');
+  // Reset detail fields
+  ['speech-title', 'speech-pathway', 'speech-project', 'speech-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('speech-time').value = '5 to 7 min';
+  openModal('modal-speaker');
 }
 
 async function confirmAssign() {
